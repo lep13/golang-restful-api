@@ -14,8 +14,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// Get the collection instance from MongoDB
-var collection *mongo.Collection = db.ConnectDB().Collection("users")
+var client *mongo.Client = db.ConnectDB()
+var collection *mongo.Collection = db.GetCollection(client, "users")
 
 // CreateUser creates a new user in the database
 func CreateUser(w http.ResponseWriter, r *http.Request) {
