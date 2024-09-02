@@ -7,6 +7,22 @@ S3_BUCKET=${S3_BUCKET_NAME}
 REGION=${AWS_REGION}
 VERSION_LABEL="v1"
 
+# Check if environment variables are set
+if [ -z "$S3_BUCKET" ]; then
+    echo "Error: S3_BUCKET_NAME is not set. Exiting."
+    exit 1
+fi
+
+if [ -z "$ENV_NAME" ]; then
+    echo "Error: EB_ENV_NAME is not set. Exiting."
+    exit 1
+fi
+
+if [ -z "$REGION" ]; then
+    echo "Error: AWS_REGION is not set. Exiting."
+    exit 1
+fi
+
 # Create S3 bucket if not exists
 if aws s3api head-bucket --bucket "$S3_BUCKET" 2>/dev/null; then
     echo "S3 bucket $S3_BUCKET already exists."
