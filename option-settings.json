@@ -13,10 +13,6 @@
         "Namespace": "aws:elasticbeanstalk:environment",
         "OptionName": "EnvironmentType",
         "Value": "LoadBalanced"
-    },
-    {
-        "Namespace": "aws:elasticbeanstalk:environment:proxy",
-        "OptionName": "ProxyServer",
-        "Value": "nginx"
     }
+
 ]
