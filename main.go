@@ -6,8 +6,8 @@ import (
     "os"
 
     "github.com/gorilla/mux"
-    "github.com/joho/godotenv" 
-    "golang-restful-api/handlers"
+    "github.com/joho/godotenv"
+    "github.com/lep13/golang-restful-api/handlers"
 )
 
 func main() {
@@ -17,13 +17,17 @@ func main() {
         log.Fatalf("Error loading .env file: %v", err)
     }
 
-    // Check if the MongoDB URI environment variable is loaded
+    // Get MongoDB URI and Port from environment variables
     mongoURI := os.Getenv("MONGO_URI")
-    if mongoURI == "" {
-        log.Fatal("MongoDB URI is not set in environment variables")
-    } else {
-        log.Printf("MongoDB URI loaded: %s", mongoURI) // Debugging statement
+    port := os.Getenv("PORT")
+
+    // Set default port if not specified
+    if port == "" {
+        port = "3000"
     }
+
+    // Initialize handlers with the MongoDB URI
+    handlers.Initialize(mongoURI)
 
     // Set up the router
     r := mux.NewRouter()
@@ -36,11 +40,6 @@ func main() {
     r.HandleFunc("/users/{id}", handlers.DeleteUser).Methods("DELETE")
 
     // Start the server
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "3000"
-    }
-
     log.Printf("Server is running on port %s...", port)
     log.Fatal(http.ListenAndServe(":"+port, r))
 }

@@ -28,7 +28,7 @@ jobs:
         run: go vet ./...
 
       - name: Run Unit Tests
-        run: go test ./...
+        run: go test ./... -coverprofile=coverage.out
 
       - name: Build Application
         run: go build -v ./...
@@ -36,4 +36,13 @@ jobs:
       - name: Run Security Scan
         run: go get -u github.com/securego/gosec/cmd/gosec && gosec ./...
 
-  # Deployment job can be added here in the future
+      - name: Deploy to Elastic Beanstalk
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: 'us-east-1'
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+        run: |
+          chmod +x ./scripts/deploy.sh
+          ./scripts/deploy.sh

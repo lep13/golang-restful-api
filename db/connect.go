@@ -1,48 +1,42 @@
 package db
 
 import (
-	"context"
-	"log"
-	"os"
-	"time"
+    "context"
+    "log"
+    "time"
 
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+    "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func ConnectDB() *mongo.Client {
-	mongoURI := os.Getenv("MONGO_URI")
+var client *mongo.Client
 
-	// Check if the URI is set
-	if mongoURI == "" {
-		log.Fatal("MongoDB URI is not set in environment variables")
-	}
+// ConnectDB connects to the MongoDB using the provided URI.
+func ConnectDB(mongoURI string) error {
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
 
-	// Parse the connection URI
-	clientOptions := options.Client().ApplyURI(mongoURI)
+    clientOptions := options.Client().ApplyURI(mongoURI)
+    var err error
+    client, err = mongo.Connect(ctx, clientOptions)
+    if err != nil {
+        return err
+    }
 
-	// Use context to manage the connection timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+    err = client.Ping(ctx, nil)
+    if err != nil {
+        return err
+    }
 
-	// Connect to MongoDB
-	client, err := mongo.Connect(ctx, clientOptions)
-	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
-	}
-
-	// Ping the database to ensure the connection is established
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		log.Fatalf("Failed to ping MongoDB: %v", err)
-	}
-
-	log.Println("Connected to MongoDB!")
-	return client
+    log.Println("Connected to MongoDB!")
+    return nil
 }
 
-func GetCollection(client *mongo.Client, collectionName string) *mongo.Collection {
-	db := client.Database(os.Getenv("DB_NAME"))
-	collection := db.Collection(collectionName)
-	return collection
+// GetCollection returns a MongoDB collection from the connected database
+func GetCollection() *mongo.Collection {
+    if client == nil {
+        log.Fatal("MongoDB client is not initialized")
+    }
+    // Hardcoded database name and collection name
+    return client.Database("pipeline_task").Collection("users")
 }
