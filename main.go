@@ -1,45 +1,48 @@
 package main
 
 import (
-	"log"
-	"net/http"
-	"os"
+    "log"
+    "net/http"
+    "os"
+    "time"
 
-	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
-	"github.com/lep13/golang-restful-api/handlers"
+    "github.com/lep13/golang-restful-api/handlers"
+    "github.com/joho/godotenv"
+    "github.com/gorilla/mux"
 )
 
 func main() {
-	// Load environment variables from the .env file
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
-	}
+    err := godotenv.Load(".env")
+    if err != nil {
+        log.Fatalf("Error loading .env file: %v", err)
+    }
 
-	mongoURI := os.Getenv("MONGO_URI")
-	if mongoURI == "" {
-		log.Fatal("MongoDB URI is not set in environment variables")
-	}
+    mongoURI := os.Getenv("MONGO_URI")
+    if mongoURI == "" {
+        log.Fatal("MongoDB URI is not set in environment variables")
+    }
 
-	// Initialize the handlers with the MongoDB URI
-	handlers.Initialize(mongoURI)
+    handlers.Initialize(mongoURI)
 
-	r := mux.NewRouter()
+    r := mux.NewRouter()
+    r.HandleFunc("/users", handlers.CreateUser).Methods("POST")
+    r.HandleFunc("/users", handlers.GetUsers).Methods("GET")
+    r.HandleFunc("/users/{id}", handlers.GetUser).Methods("GET")
+    r.HandleFunc("/users/{id}", handlers.UpdateUser).Methods("PUT")
+    r.HandleFunc("/users/{id}", handlers.DeleteUser).Methods("DELETE")
 
-	// Define routes for CRUD operations
-	r.HandleFunc("/users", handlers.CreateUser).Methods("POST")
-	r.HandleFunc("/users", handlers.GetUsers).Methods("GET")
-	r.HandleFunc("/users/{id}", handlers.GetUser).Methods("GET")
-	r.HandleFunc("/users/{id}", handlers.UpdateUser).Methods("PUT")
-	r.HandleFunc("/users/{id}", handlers.DeleteUser).Methods("DELETE")
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "3000"
+    }
 
-	// Set up the server port
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "3000"
-	}
+    srv := &http.Server{
+        Handler:      r,
+        Addr:         ":" + port,
+        WriteTimeout: 15 * time.Second,
+        ReadTimeout:  15 * time.Second,
+    }
 
-	log.Printf("Server is running on port %s...", port)
-	log.Fatal(http.ListenAndServe(":"+port, r))
+    log.Printf("Server is running on port %s...", port)
+    log.Fatal(srv.ListenAndServe())
 }
