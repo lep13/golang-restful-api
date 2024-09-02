@@ -1,0 +1,22 @@
+[
+    {
+        "Namespace": "aws:elasticbeanstalk:application:environment",
+        "OptionName": "MONGO_URI",
+        "Value": "mongodb+srv://lepakshi1304:juSXfZFfMT3UWqKh@messages-cluster.utdovdn.mongodb.net/pipeline_task?retryWrites=true&w=majority"
+    },
+    {
+        "Namespace": "aws:elasticbeanstalk:application:environment",
+        "OptionName": "DB_NAME",
+        "Value": "pipeline_task"
+    },
+    {
+        "Namespace": "aws:elasticbeanstalk:environment",
+        "OptionName": "EnvironmentType",
+        "Value": "LoadBalanced"
+    },
+    {
+        "Namespace": "aws:elasticbeanstalk:environment:proxy",
+        "OptionName": "ProxyServer",
+        "Value": "nginx"
+    }
+]
