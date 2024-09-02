@@ -53,7 +53,7 @@ else
     aws elasticbeanstalk create-environment \
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
-        --solution-stack-name "64bit Amazon Linux 2 v3.4.7 running Go 1.x" \
+        --solution-stack-name "64bit Amazon Linux 2023 v4.1.3 running Go 1" \
         --option-settings file://option-settings.json \
         --region $REGION
 fi
