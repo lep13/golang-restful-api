@@ -5,8 +5,9 @@ APP_NAME="golang-restful-api"
 ENV_NAME=${EB_ENV_NAME}
 S3_BUCKET=${S3_BUCKET_NAME}
 REGION=${AWS_REGION}
+VERSION_LABEL="v1"
 
-# Create S3 bucket if not exists (Reverting to the version that worked)
+# Create S3 bucket if not exists
 if aws s3api head-bucket --bucket "$S3_BUCKET" 2>/dev/null; then
     echo "S3 bucket $S3_BUCKET already exists."
 else
@@ -15,6 +16,7 @@ else
 fi
 
 # Package application
+echo "Packaging the application..."
 zip -r application.zip .
 
 # Upload package to S3
@@ -33,23 +35,23 @@ fi
 echo "Creating new application version..."
 aws elasticbeanstalk create-application-version \
     --application-name $APP_NAME \
-    --version-label "v1" \
+    --version-label $VERSION_LABEL \
     --source-bundle S3Bucket="$S3_BUCKET",S3Key="application.zip" \
     --region $REGION
 
-# Check if the environment exists and create or update accordingly
+# Create or Update Elastic Beanstalk Environment
 existing_env=$(aws elasticbeanstalk describe-environments --application-name $APP_NAME --environment-names $ENV_NAME --query 'Environments[0].EnvironmentName' --output text)
 
 if [ "$existing_env" == "$ENV_NAME" ]; then
     echo "Updating existing Elastic Beanstalk environment $ENV_NAME..."
-    aws elasticbeanstalk update-environment --environment-name $ENV_NAME --version-label "v1" --region $REGION
+    aws elasticbeanstalk update-environment --environment-name $ENV_NAME --version-label $VERSION_LABEL --region $REGION
 else
     echo "Creating new Elastic Beanstalk environment $ENV_NAME..."
     aws elasticbeanstalk create-environment \
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
         --solution-stack-name "64bit Amazon Linux 2 v3.3.8 running Go 1.x" \
-        --version-label "v1" \
+        --version-label $VERSION_LABEL \
         --option-settings Namespace=aws:elasticbeanstalk:environment,OptionName=EnvironmentType,Value=SingleInstance \
         --option-settings Namespace=aws:elasticbeanstalk:application:environment,OptionName=MONGO_URI,Value=${MONGO_URI} \
         --option-settings Namespace=aws:elasticbeanstalk:application:environment,OptionName=DB_NAME,Value=${DB_NAME} \
