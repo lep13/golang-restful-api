@@ -1,45 +1,45 @@
 package main
 
 import (
-    "log"
-    "net/http"
-    "os"
+	"log"
+	"net/http"
+	"os"
 
-    "github.com/gorilla/mux"
-    "github.com/joho/godotenv"
-    "github.com/lep13/golang-restful-api/handlers"
+	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
+	"github.com/lep13/golang-restful-api/handlers"
 )
 
 func main() {
-    // Load environment variables from the .env file
-    err := godotenv.Load()
-    if err != nil {
-        log.Fatalf("Error loading .env file: %v", err)
-    }
+	// Load environment variables from the .env file
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
 
-    // Get MongoDB URI and Port from environment variables
-    mongoURI := os.Getenv("MONGO_URI")
-    port := os.Getenv("PORT")
+	mongoURI := os.Getenv("MONGO_URI")
+	if mongoURI == "" {
+		log.Fatal("MongoDB URI is not set in environment variables")
+	}
 
-    // Set default port if not specified
-    if port == "" {
-        port = "3000"
-    }
+	// Initialize the handlers with the MongoDB URI
+	handlers.Initialize(mongoURI)
 
-    // Initialize handlers with the MongoDB URI
-    handlers.Initialize(mongoURI)
+	r := mux.NewRouter()
 
-    // Set up the router
-    r := mux.NewRouter()
+	// Define routes for CRUD operations
+	r.HandleFunc("/users", handlers.CreateUser).Methods("POST")
+	r.HandleFunc("/users", handlers.GetUsers).Methods("GET")
+	r.HandleFunc("/users/{id}", handlers.GetUser).Methods("GET")
+	r.HandleFunc("/users/{id}", handlers.UpdateUser).Methods("PUT")
+	r.HandleFunc("/users/{id}", handlers.DeleteUser).Methods("DELETE")
 
-    // Define routes for CRUD operations
-    r.HandleFunc("/users", handlers.CreateUser).Methods("POST")
-    r.HandleFunc("/users", handlers.GetUsers).Methods("GET")
-    r.HandleFunc("/users/{id}", handlers.GetUser).Methods("GET")
-    r.HandleFunc("/users/{id}", handlers.UpdateUser).Methods("PUT")
-    r.HandleFunc("/users/{id}", handlers.DeleteUser).Methods("DELETE")
+	// Set up the server port
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
 
-    // Start the server
-    log.Printf("Server is running on port %s...", port)
-    log.Fatal(http.ListenAndServe(":"+port, r))
+	log.Printf("Server is running on port %s...", port)
+	log.Fatal(http.ListenAndServe(":"+port, r))
 }
