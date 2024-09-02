@@ -28,7 +28,7 @@ jobs:
         run: go vet ./...
 
       - name: Run Unit Tests
-        run: go test ./... -coverprofile=coverage.out
+        run: go test ./...
 
       - name: Build Application
         run: go build -v ./...
@@ -36,13 +36,35 @@ jobs:
       - name: Run Security Scan
         run: go get -u github.com/securego/gosec/cmd/gosec && gosec ./...
 
-      - name: Deploy to Elastic Beanstalk
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Run Deployment Script
+        run: bash create-eb-environment.sh
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: 'us-east-1'
           MONGO_URI: ${{ secrets.MONGO_URI }}
           DB_NAME: ${{ secrets.DB_NAME }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+          EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}
+
+      - name: Deploy to Elastic Beanstalk
         run: |
-          chmod +x ./scripts/deploy.sh
-          ./scripts/deploy.sh
+          aws elasticbeanstalk create-application-version --application-name golang-restful-api --version-label v1 --source-bundle S3Bucket="${{ secrets.S3_BUCKET_NAME }}",S3Key="application.zip" --region ${{ secrets.AWS_REGION }}
+          aws elasticbeanstalk update-environment --application-name golang-restful-api --environment-name ${{ secrets.EB_ENV_NAME }} --version-label v1 --region ${{ secrets.AWS_REGION }}
+
+      - name: Enable CloudWatch Logs
+        run: |
+          aws elasticbeanstalk update-environment --application-name golang-restful-api --environment-name ${{ secrets.EB_ENV_NAME }} --option-settings Namespace=aws:elasticbeanstalk:hostmanager,OptionName=SystemLogS3Key,Value="elasticbeanstalk-app-logs" --region ${{ secrets.AWS_REGION }}
