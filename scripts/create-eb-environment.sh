@@ -8,6 +8,20 @@ REGION=${AWS_REGION}
 VERSION_LABEL="v1"
 IAM_INSTANCE_PROFILE="ElasticBeanstalk-InstanceProfile"  # Replace with your actual IAM role name if different
 
+# Debugging: Print out the variables to make sure they are set
+echo "DEBUG: APP_NAME=$APP_NAME"
+echo "DEBUG: ENV_NAME=$ENV_NAME"
+echo "DEBUG: S3_BUCKET=$S3_BUCKET"
+echo "DEBUG: REGION=$REGION"
+echo "DEBUG: VERSION_LABEL=$VERSION_LABEL"
+echo "DEBUG: IAM_INSTANCE_PROFILE=$IAM_INSTANCE_PROFILE"
+
+# Check if S3_BUCKET is set correctly
+if [ -z "$S3_BUCKET" ]; then
+    echo "Error: S3_BUCKET_NAME is not set. Exiting."
+    exit 1
+fi
+
 # Create S3 bucket if not exists
 if aws s3api head-bucket --bucket "$S3_BUCKET" 2>/dev/null; then
     echo "S3 bucket $S3_BUCKET already exists."
