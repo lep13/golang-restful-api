@@ -2,11 +2,11 @@
 
 # Variables from environment
 APP_NAME="golang-restful-api"
-ENV_NAME=${EB_ENV_NAME}
-S3_BUCKET=${S3_BUCKET_NAME}
-REGION=${AWS_REGION}
+ENV_NAME=${EB_ENV_NAME:-"default-env-name"}
+S3_BUCKET=${S3_BUCKET_NAME:-"default-s3-bucket-name"}
+REGION=${AWS_REGION:-"us-east-1"}
 VERSION_LABEL="v1"
-IAM_INSTANCE_PROFILE="ElasticBeanstalk-InstanceProfile"  # Replace with your actual IAM role name if different
+IAM_INSTANCE_PROFILE="ElasticBeanstalk-InstanceProfile"  # Use the actual name of your IAM role
 
 # Debugging: Print out the variables to make sure they are set
 echo "DEBUG: APP_NAME=$APP_NAME"
@@ -16,9 +16,14 @@ echo "DEBUG: REGION=$REGION"
 echo "DEBUG: VERSION_LABEL=$VERSION_LABEL"
 echo "DEBUG: IAM_INSTANCE_PROFILE=$IAM_INSTANCE_PROFILE"
 
-# Check if S3_BUCKET is set correctly
-if [ -z "$S3_BUCKET" ]; then
-    echo "Error: S3_BUCKET_NAME is not set. Exiting."
+# Check if S3_BUCKET and ENV_NAME are set correctly
+if [ -z "$S3_BUCKET" ] || [ "$S3_BUCKET" == "default-s3-bucket-name" ]; then
+    echo "Error: S3_BUCKET_NAME is not set or is set to a default value. Exiting."
+    exit 1
+fi
+
+if [ -z "$ENV_NAME" ] || [ "$ENV_NAME" == "default-env-name" ]; then
+    echo "Error: EB_ENV_NAME is not set or is set to a default value. Exiting."
     exit 1
 fi
 
