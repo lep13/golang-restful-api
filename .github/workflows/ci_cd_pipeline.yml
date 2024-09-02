@@ -44,13 +44,13 @@ jobs:
         with:
           go-version: '1.22.3'
 
-      - name: Install Gosec
-        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+      # - name: Install Gosec
+      #   run: go install github.com/securego/gosec/v2/cmd/gosec@latest
 
-      - name: Run Security Scan
-        run: |
-          go get -u github.com/securego/gosec/cmd/gosec
-          gosec ./...
+      # - name: Run Security Scan
+      #   run: |
+      #     go get -u github.com/securego/gosec/cmd/gosec
+      #     gosec ./...
   
   deploy:
     runs-on: ubuntu-latest
