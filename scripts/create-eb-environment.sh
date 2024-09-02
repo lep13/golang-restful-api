@@ -48,7 +48,7 @@ else
     aws elasticbeanstalk create-environment \
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
-        --solution-stack-name "64bit Amazon Linux 2 v3.4.7 running Go 1.x" \
+        --solution-stack-name "64bit Amazon Linux 2 v3.3.3 running Go 1.x" \  # Replace this with the valid solution stack
         --option-settings Namespace=aws:elasticbeanstalk:environment,OptionName=EnvironmentType,Value=LoadBalanced \
         --option-settings Namespace=aws:elasticbeanstalk:application:environment,OptionName=MONGO_URI,Value=${MONGO_URI} \
         --option-settings Namespace=aws:elasticbeanstalk:application:environment,OptionName=DB_NAME,Value=${DB_NAME} \
