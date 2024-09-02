@@ -76,6 +76,3 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           MONGO_URI: ${{ secrets.MONGO_URI }}
           DB_NAME: ${{ secrets.DB_NAME }}
-
-      - name: Post Deployment Check
-        run: echo "Deployment completed successfully!"
