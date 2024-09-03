@@ -94,7 +94,7 @@ else
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
         --version-label $VERSION_LABEL \
-        --solution-stack-name $SOLUTION_STACK_NAME \
+        --solution-stack-name "$SOLUTION_STACK_NAME" \ 
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
         --option-settings Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
         --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
@@ -103,8 +103,18 @@ else
         --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
         --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
         --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
-        --region $REGION
+        --region $REGION || {
+            echo "Error: Failed to create Elastic Beanstalk environment. Exiting."
+            exit 1
+        }
 fi
+
+# Wait for environment to be ready
+echo "Waiting for the environment to be ready..."
+aws elasticbeanstalk wait environment-updated --application-name $APP_NAME --environment-names $ENV_NAME --region $REGION || {
+    echo "Error: Environment update did not complete successfully. Exiting."
+    exit 1
+}
 
 # Wait for environment to be ready
 echo "Waiting for the environment to be ready..."
