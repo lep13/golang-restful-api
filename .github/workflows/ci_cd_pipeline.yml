@@ -76,3 +76,8 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           MONGO_URI: ${{ secrets.MONGO_URI }}
           DB_NAME: ${{ secrets.DB_NAME }}
+          VPC_ID: ${{ secrets.VPC_ID }}
+          SUBNET_ID: ${{ secrets.SUBNET_ID }}
+          IAM_INSTANCE_PROFILE: ${{ secrets.IAM_INSTANCE_PROFILE }}
+          SECURITY_GROUP_NAME: ${{ secrets.SECURITY_GROUP_NAME }}
+
