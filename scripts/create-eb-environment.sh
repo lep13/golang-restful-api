@@ -81,28 +81,27 @@ if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
     aws elasticbeanstalk update-environment \
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
-        --version-label $VERSION_LABEL \
+        --version-label v1 \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
         --option-settings Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
         --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
-        --option-settings Namespace=aws:elasticbeanstalk:environment,OptionName=EnvironmentType,Value=LoadBalanced \
         --region $REGION
 else
     echo "Creating Elastic Beanstalk environment $ENV_NAME..."
     aws elasticbeanstalk create-environment \
-        --application-name $APP_NAME \
-        --environment-name $ENV_NAME \
-        --version-label $VERSION_LABEL \
-        --solution-stack-name "$SOLUTION_STACK_NAME" \ 
-        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
-        --option-settings Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
-        --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
-        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
-        --option-settings Namespace=aws:elasticbeanstalk:environment,OptionName=EnvironmentType,Value=LoadBalanced \
-        --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
-        --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
-        --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
+        --application-name "$APP_NAME" \
+        --environment-name "$ENV_NAME" \
+        --version-label "v1" \
+        --solution-stack-name "64bit Amazon Linux 2023 v4.1.3 running Go 1" \
+        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value="$INSTANCE_PROFILE" \
+        Namespace=aws:ec2:vpc,OptionName=VPCId,Value="$VPC_ID" \
+        Namespace=aws:ec2:vpc,OptionName=Subnets,Value="$SUBNET_ID" \
+        Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value="$security_group_id" \
+        Namespace=aws:elasticbeanstalk:environment,OptionName=EnvironmentType,Value=LoadBalanced \
+        Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
+        Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
+        Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
         --region $REGION || {
             echo "Error: Failed to create Elastic Beanstalk environment. Exiting."
             exit 1
