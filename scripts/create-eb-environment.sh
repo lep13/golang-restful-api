@@ -9,6 +9,8 @@ INSTANCE_PROFILE=${IAM_INSTANCE_PROFILE}  # Use the IAM instance profile from se
 SECURITY_GROUP_NAME=${SECURITY_GROUP_NAME}  # Use the security group name from secrets
 VPC_ID=${VPC_ID}
 SUBNET_ID=${SUBNET_ID}
+VERSION_LABEL="v1"  # Define the version label for the application version
+SOLUTION_STACK_NAME="64bit Amazon Linux 2023 v4.1.3 running Go 1"  # Specify the solution stack name
 
 # Check required environment variables
 if [ -z "$S3_BUCKET" ]; then
@@ -67,9 +69,9 @@ fi
 
 # Create new application version
 echo "Creating new application version..."
-aws elasticbeanstalk create-application-version --application-name $APP_NAME --version-label v1 --source-bundle S3Bucket="$S3_BUCKET",S3Key="application.zip" --region $REGION
+aws elasticbeanstalk create-application-version --application-name $APP_NAME --version-label $VERSION_LABEL --source-bundle S3Bucket="$S3_BUCKET",S3Key="application.zip" --region $REGION
 
-# Create or update Elastic Beanstalk Environment with IAM Instance Profile and Security Group
+# Check if environment exists and update or create accordingly
 echo "Checking if environment $ENV_NAME exists..."
 env_exists=$(aws elasticbeanstalk describe-environments --application-name $APP_NAME --environment-names $ENV_NAME --query "Environments[0].Status" --output text --region $REGION)
 
@@ -78,23 +80,55 @@ if [ "$env_exists" != "None" ]; then
     aws elasticbeanstalk update-environment \
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
+        --version-label $VERSION_LABEL \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
-        --option-settings Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
-        --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
-        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
+        Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
+        Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
+        Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
         --region $REGION
 else
     echo "Creating Elastic Beanstalk environment $ENV_NAME..."
     aws elasticbeanstalk create-environment \
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
-        --solution-stack-name "64bit Amazon Linux 2023 v4.1.3 running Go 1" \
+        --version-label $VERSION_LABEL \
+        --solution-stack-name "$SOLUTION_STACK_NAME" \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
-        --option-settings Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
-        --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
-        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
-        --option-settings file://option-settings.json \
+        Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
+        Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
+        Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
         --region $REGION
 fi
 
-echo "Deployment to Elastic Beanstalk completed."
+# Wait for the environment to be ready
+echo "Waiting for the environment to be ready..."
+aws elasticbeanstalk wait environment-health --environment-name $ENV_NAME --environment-health-status Ok --region $REGION
+echo "Environment is ready."
+
+# Health Check
+echo "Checking environment health..."
+health_status=$(aws elasticbeanstalk describe-environments --environment-names $ENV_NAME --query "Environments[0].Health" --output text --region $REGION)
+
+if [ "$health_status" != "Green" ]; then
+    echo "Warning: Environment $ENV_NAME health is not Green. Health status: $health_status"
+    echo "Fetching logs for debugging..."
+    aws elasticbeanstalk request-environment-info --environment-name $ENV_NAME --info-type tail --region $REGION
+    aws elasticbeanstalk retrieve-environment-info --environment-name $ENV_NAME --info-type tail --region $REGION
+    echo "Rolling back to previous version..."
+    aws elasticbeanstalk update-environment --environment-name $ENV_NAME --version-label previous_version_label --region $REGION
+    exit 1
+else
+    echo "Environment $ENV_NAME health is Green."
+fi
+
+# Database Connectivity Check
+echo "Checking MongoDB connection..."
+# Replace with actual code to check MongoDB connectivity using your application logic, this is a placeholder.
+if mongo --eval "db.stats()" $MONGO_URI | grep -q 'ok'; then
+    echo "MongoDB connection is successful."
+else
+    echo "MongoDB connection failed. Exiting."
+    exit 1
+fi
+
+echo "Deployment to Elastic Beanstalk completed successfully."
