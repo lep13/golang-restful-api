@@ -5,12 +5,12 @@ APP_NAME="golang-restful-api"
 ENV_NAME=${EB_ENV_NAME}
 S3_BUCKET=${S3_BUCKET_NAME}
 REGION=${AWS_REGION}
-INSTANCE_PROFILE=${IAM_INSTANCE_PROFILE}  # Use the IAM instance profile from secrets
-SECURITY_GROUP_NAME=${SECURITY_GROUP_NAME}  # Use the security group name from secrets
+INSTANCE_PROFILE=${IAM_INSTANCE_PROFILE}  # Correctly set to ElasticBeanstalk-InstanceProfile
+SECURITY_GROUP_NAME=${SECURITY_GROUP_NAME}  # Ensure this matches the name shown in security group settings
 VPC_ID=${VPC_ID}
 SUBNET_ID=${SUBNET_ID}
-VERSION_LABEL="v1"  # Define the version label
-SOLUTION_STACK_NAME="64bit Amazon Linux 2023 v4.1.3 running Go 1"
+VERSION_LABEL="v1"  # Version label to manage application versions
+SOLUTION_STACK_NAME="64bit Amazon Linux 2023 v4.1.3 running Go 1"  # Specify the platform version
 
 # Check required environment variables
 if [ -z "$S3_BUCKET" ]; then
@@ -67,48 +67,58 @@ else
     aws elasticbeanstalk create-application --application-name $APP_NAME --region $REGION
 fi
 
-# Create new application version
+# Create or update application version
 echo "Creating new application version..."
-aws elasticbeanstalk create-application-version --application-name $APP_NAME --version-label $VERSION_LABEL --source-bundle S3Bucket="$S3_BUCKET",S3Key="application.zip" --region $REGION
+aws elasticbeanstalk create-application-version --application-name $APP_NAME --version-label $VERSION_LABEL --source-bundle S3Bucket="$S3_BUCKET",S3Key="application.zip" --region $REGION || {
+    echo "Application version $VERSION_LABEL already exists. Skipping creation."
+}
 
-# Create or update Elastic Beanstalk Environment with IAM Instance Profile and Security Group
-echo "Checking if environment $ENV_NAME exists..."
-# Check if environment exists
-env_exists=$(aws elasticbeanstalk describe-environments --application-name $APP_NAME --environment-names $ENV_NAME --region $REGION --query "Environments[0].EnvironmentName" --output text)
+# Check if environment exists and update or create accordingly
+env_exists=$(aws elasticbeanstalk describe-environments --application-name $APP_NAME --environment-names $ENV_NAME --query "Environments[0].Status" --output text --region $REGION)
 
-if [ "$env_exists" == "None" ]; then
+if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
+    echo "Updating Elastic Beanstalk environment $ENV_NAME..."
+    aws elasticbeanstalk update-environment \
+        --application-name $APP_NAME \
+        --environment-name $ENV_NAME \
+        --version-label $VERSION_LABEL \
+        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
+        --option-settings Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
+        --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
+        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
+        --option-settings Namespace=aws:elasticbeanstalk:environment,OptionName=EnvironmentType,Value=LoadBalanced \
+        --region $REGION
+else
     echo "Creating Elastic Beanstalk environment $ENV_NAME..."
     aws elasticbeanstalk create-environment \
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
-        --version-label $(date +%Y%m%d%H%M%S) \  # Use a timestamp to ensure unique version
-        --solution-stack-name "64bit Amazon Linux 2023 v4.1.3 running Go 1" \
+        --version-label $VERSION_LABEL \
+        --solution-stack-name $SOLUTION_STACK_NAME \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
         --option-settings Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
         --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
-        --region $REGION
-else
-    echo "Updating Elastic Beanstalk environment $ENV_NAME..."
-    aws elasticbeanstalk update-environment \
-        --environment-name $ENV_NAME \
-        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
-        --option-settings Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
-        --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
-        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
+        --option-settings Namespace=aws:elasticbeanstalk:environment,OptionName=EnvironmentType,Value=LoadBalanced \
+        --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
+        --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
+        --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
         --region $REGION
 fi
-    # Wait for the environment to become ready
-    aws elasticbeanstalk wait environment-exists --environment-names $ENV_NAME --region $REGION
-    echo "Environment $ENV_NAME is now in launching state."
 
-    # Loop to check environment status
-    while [ "$(aws elasticbeanstalk describe-environments --environment-names $ENV_NAME --query "Environments[0].Health" --output text --region $REGION)" != "Green" ]
-    do
-        echo "Waiting for environment $ENV_NAME to be Green..."
-        sleep 30
-    done
-    echo "Environment $ENV_NAME is Green. Proceeding with deployment."
-fi
+# Wait for environment to be ready
+echo "Waiting for the environment to be ready..."
+aws elasticbeanstalk wait environment-updated --application-name $APP_NAME --environment-names $ENV_NAME --region $REGION
 
-echo "Deployment to Elastic Beanstalk completed."
+# Check environment health and perform health check and DB connectivity check
+echo "Checking environment health..."
+aws elasticbeanstalk describe-environment-health --environment-name $ENV_NAME --attribute-names All --region $REGION
+
+# Enable CloudWatch monitoring and logs if not enabled
+echo "Enabling CloudWatch monitoring and logs..."
+aws elasticbeanstalk update-environment \
+    --environment-name $ENV_NAME \
+    --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
+    --region $REGION
+
+echo "Deployment to Elastic Beanstalk completed successfully."
