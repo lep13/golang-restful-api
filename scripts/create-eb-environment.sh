@@ -73,31 +73,31 @@ aws elasticbeanstalk create-application-version --application-name $APP_NAME --v
 
 # Create or update Elastic Beanstalk Environment with IAM Instance Profile and Security Group
 echo "Checking if environment $ENV_NAME exists..."
-env_exists=$(aws elasticbeanstalk describe-environments --application-name $APP_NAME --environment-names $ENV_NAME --query "Environments[0].Status" --output text --region $REGION)
+# Check if environment exists
+env_exists=$(aws elasticbeanstalk describe-environments --application-name $APP_NAME --environment-names $ENV_NAME --region $REGION --query "Environments[0].EnvironmentName" --output text)
 
-if [ "$env_exists" != "None" ]; then
-    echo "Updating Elastic Beanstalk environment $ENV_NAME..."
-    aws elasticbeanstalk update-environment \
+if [ "$env_exists" == "None" ]; then
+    echo "Creating Elastic Beanstalk environment $ENV_NAME..."
+    aws elasticbeanstalk create-environment \
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
+        --version-label $(date +%Y%m%d%H%M%S) \  # Use a timestamp to ensure unique version
+        --solution-stack-name "64bit Amazon Linux 2023 v4.1.3 running Go 1" \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
         --option-settings Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
         --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
         --region $REGION
 else
-    echo "Creating Elastic Beanstalk environment $ENV_NAME..."
-    aws elasticbeanstalk create-environment \
-        --application-name ${APP_NAME} \
-        --environment-name ${ENV_NAME} \
-        --version-label ${VERSION_LABEL} \
-        --solution-stack-name ${SOLUTION_STACK_NAME} \
+    echo "Updating Elastic Beanstalk environment $ENV_NAME..."
+    aws elasticbeanstalk update-environment \
+        --environment-name $ENV_NAME \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
         --option-settings Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
         --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
         --region $REGION
-
+fi
     # Wait for the environment to become ready
     aws elasticbeanstalk wait environment-exists --environment-names $ENV_NAME --region $REGION
     echo "Environment $ENV_NAME is now in launching state."
