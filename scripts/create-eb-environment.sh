@@ -5,12 +5,12 @@ APP_NAME="golang-restful-api"
 ENV_NAME=${EB_ENV_NAME}
 S3_BUCKET=${S3_BUCKET_NAME}
 REGION=${AWS_REGION}
-INSTANCE_PROFILE=${IAM_INSTANCE_PROFILE}  # Correctly set to ElasticBeanstalk-InstanceProfile
-SECURITY_GROUP_NAME=${SECURITY_GROUP_NAME}  # Ensure this matches the name shown in security group settings
+INSTANCE_PROFILE="ElasticBeanstalk-InstanceProfile"
+SECURITY_GROUP_NAME=${SECURITY_GROUP_NAME}
 VPC_ID=${VPC_ID}
 SUBNET_ID=${SUBNET_ID}
-VERSION_LABEL="v1"  # Version label to manage application versions
-SOLUTION_STACK_NAME="64bit Amazon Linux 2023 v4.1.3 running Go 1"  # Specify the platform version
+VERSION_LABEL="v1"
+SOLUTION_STACK_NAME="64bit Amazon Linux 2023 v4.1.3 running Go 1"
 
 # Check required environment variables
 if [ -z "$S3_BUCKET" ]; then
@@ -81,18 +81,18 @@ if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
     aws elasticbeanstalk update-environment \
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
-        --version-label $VERSION_LABEL \
+        --version-label v1 \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
-        Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
-        Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
-        Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
+        --option-settings Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
+        --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
+        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
         --region $REGION
 else
     echo "Creating Elastic Beanstalk environment $ENV_NAME..."
     aws elasticbeanstalk create-environment \
         --application-name "$APP_NAME" \
         --environment-name "$ENV_NAME" \
-        --version-label "$VERSION_LABEL" \
+        --version-label "v1" \
         --solution-stack-name "$SOLUTION_STACK_NAME" \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value="$INSTANCE_PROFILE" \
         Namespace=aws:ec2:vpc,OptionName=VPCId,Value="$VPC_ID" \
@@ -115,17 +115,15 @@ aws elasticbeanstalk wait environment-updated --application-name $APP_NAME --env
     exit 1
 }
 
-# Check environment health
+# Check environment health and perform health check
 echo "Checking environment health..."
 aws elasticbeanstalk describe-environment-health --environment-name $ENV_NAME --attribute-names All --region $REGION
 
-# Enable CloudWatch monitoring and logs
+# Enable CloudWatch monitoring and logs if not enabled
 echo "Enabling CloudWatch monitoring and logs..."
 aws elasticbeanstalk update-environment \
     --environment-name $ENV_NAME \
     --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
-    Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
-    Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
     --region $REGION
 
 echo "Deployment to Elastic Beanstalk completed successfully."

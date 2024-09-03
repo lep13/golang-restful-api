@@ -10,17 +10,30 @@ import (
     "go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-// MongoDBClient is an interface to abstract the mongo.Client
-type MongoDBClient interface {
+// MongoClientInterface defines the interface for MongoDB client methods used in our code.
+type MongoClientInterface interface {
     Ping(ctx context.Context, rp *readpref.ReadPref) error
     Database(name string, opts ...*options.DatabaseOptions) *mongo.Database
 }
 
-// Client is a variable to hold the actual mongo client
-var Client MongoDBClient
+// MongoClientWrapper wraps the actual MongoDB client to conform to our interface.
+type MongoClientWrapper struct {
+    Client *mongo.Client
+}
+
+func (m *MongoClientWrapper) Ping(ctx context.Context, rp *readpref.ReadPref) error {
+    return m.Client.Ping(ctx, rp)
+}
+
+func (m *MongoClientWrapper) Database(name string, opts ...*options.DatabaseOptions) *mongo.Database {
+    return m.Client.Database(name, opts...)
+}
+
+// MongoClient holds the actual MongoDB client or a mock for testing.
+var MongoClient MongoClientInterface
 
 // ConnectDB connects to the MongoDB using the provided URI.
-func ConnectDB(mongoURI string) MongoDBClient {
+func ConnectDB(mongoURI string) MongoClientInterface {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
@@ -36,12 +49,12 @@ func ConnectDB(mongoURI string) MongoDBClient {
     }
 
     log.Println("Connected to MongoDB!")
-    Client = client
-    return client
+    MongoClient = &MongoClientWrapper{Client: client}
+    return MongoClient
 }
 
 // GetCollection returns a MongoDB collection from the "pipeline_task" database
-func GetCollection(client MongoDBClient) *mongo.Collection {
+func GetCollection(client MongoClientInterface) *mongo.Collection {
     db := client.Database("pipeline_task")
     collection := db.Collection("users")
     return collection

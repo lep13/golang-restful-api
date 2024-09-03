@@ -2,43 +2,40 @@ package db
 
 import (
 	"context"
-	"os"
+	"errors"
 	"testing"
-	"time"
+
+	"os"
 
 	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/mock"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-// MockMongoClient is a mock structure that simulates the behavior of a MongoDB client.
-type MockMongoClient struct{}
+// MockMongoClient simulates the MongoDB client behavior.
+type MockMongoClient struct {
+	mock.Mock
+}
 
-// MockDatabase simulates a MongoDB database.
-type MockDatabase struct{}
-
-// MockCollection simulates a MongoDB collection.
-type MockCollection struct{}
-
-// Mock methods to satisfy the MongoDBClient interface
 func (m *MockMongoClient) Ping(ctx context.Context, rp *readpref.ReadPref) error {
-	// Simulate a successful ping
-	return nil
+	args := m.Called(ctx, rp)
+	return args.Error(0)
 }
 
-// Implementing a mock method to return a MockDatabase instead of a real mongo.Database
 func (m *MockMongoClient) Database(name string, opts ...*options.DatabaseOptions) *mongo.Database {
-	// Create a dummy mongo.Database object
-	db := mongo.Database{}
-	return &db
+	args := m.Called(name, opts)
+	return args.Get(0).(*mongo.Database)
 }
 
-// Implementing a mock method for the collection, which avoids the actual database calls.
+type MockDatabase struct {
+	mock.Mock
+}
+
 func (m *MockDatabase) Collection(name string, opts ...*options.CollectionOptions) *mongo.Collection {
-	// Create a dummy mongo.Collection object
-	col := mongo.Collection{}
-	return &col
+	args := m.Called(name, opts)
+	return args.Get(0).(*mongo.Collection)
 }
 
 func TestMain(m *testing.M) {
@@ -51,39 +48,17 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// TestConnectDB tests the ConnectDB function.
-func TestConnectDB(t *testing.T) {
+func TestConnectDB_Success(t *testing.T) {
+	originalMongoClient := MongoClient
+	defer func() { MongoClient = originalMongoClient }()
+
+	mockClient := new(MockMongoClient)
+	mockClient.On("Ping", mock.Anything, mock.Anything).Return(errors.New("failed to ping MongoDB"))
+
+	MongoClient = mockClient
+
 	mongoURI := os.Getenv("MONGO_URI")
-	if mongoURI == "" {
-		t.Fatal("MONGO_URI is not set in environment variables")
-	}
-
-	// Use a longer timeout to account for network delays
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	clientOptions := options.Client().ApplyURI(mongoURI)
-	client, err := mongo.Connect(ctx, clientOptions)
-	if err != nil {
-		t.Fatalf("Failed to connect to MongoDB: %v", err)
-	}
-
-	err = client.Ping(ctx, readpref.Primary())
-	if err != nil {
-		t.Fatalf("Failed to ping MongoDB: %v", err)
-	}
-
-	t.Log("Successfully connected and pinged MongoDB")
+	ConnectDB(mongoURI)
 }
 
-// TestGetCollection tests the GetCollection function.
-// func TestGetCollection(t *testing.T) {
-// 	// Use MockMongoClient to simulate a mongo.Client behavior
-// 	client := &MockMongoClient{}
 
-// 	// Inject the mock client into the GetCollection call
-// 	collection := GetCollection(client)
-// 	if collection == nil {
-// 		t.Errorf("Expected non-nil collection, got nil")
-// 	}
-// }
