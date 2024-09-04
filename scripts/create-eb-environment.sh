@@ -91,38 +91,29 @@ if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
     aws elasticbeanstalk update-environment \
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
-        --version-label $VERSION_LABEL \
+        --version-label v1 \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
-        Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
-        Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
-        Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
-        Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=my-ec2-keypair \
-        Namespace=aws:elasticbeanstalk:environment,OptionName=LoadBalancerHTTPPort,Value=80 \
-        Namespace=aws:elasticbeanstalk:environment,OptionName=LoadBalancerPort,Value=3000 \
-        Namespace=aws:elasticbeanstalk:environment:process:default,OptionName=Port,Value=3000 \
-        Namespace=aws:elasticbeanstalk:environment,OptionName=HealthCheckPath,Value="/health" \
-        Namespace=aws:elasticbeanstalk:environment,OptionName=EnvironmentType,Value=LoadBalanced \
+        --option-settings Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
+        --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
+        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
+        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=my-ec2-keypair \
         --region $REGION
 else
     echo "Creating Elastic Beanstalk environment $ENV_NAME..."
     aws elasticbeanstalk create-environment \
         --application-name "$APP_NAME" \
         --environment-name "$ENV_NAME" \
-        --version-label "$VERSION_LABEL" \
+        --version-label "v1" \
         --solution-stack-name "$SOLUTION_STACK_NAME" \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value="$INSTANCE_PROFILE" \
         Namespace=aws:ec2:vpc,OptionName=VPCId,Value="$VPC_ID" \
         Namespace=aws:ec2:vpc,OptionName=Subnets,Value="$SUBNET_ID" \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value="$security_group_id" \
-        Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=my-ec2-keypair \
-        Namespace=aws:elasticbeanstalk:environment,OptionName=LoadBalancerHTTPPort,Value=80 \
-        Namespace=aws:elasticbeanstalk:environment,OptionName=LoadBalancerPort,Value=3000 \
-        Namespace=aws:elasticbeanstalk:environment:process:default,OptionName=Port,Value=3000 \
-        Namespace=aws:elasticbeanstalk:environment,OptionName=HealthCheckPath,Value="/health" \
         Namespace=aws:elasticbeanstalk:environment,OptionName=EnvironmentType,Value=LoadBalanced \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
+        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=my-ec2-keypair \
         --region $REGION || {
             echo "Error: Failed to create Elastic Beanstalk environment. Exiting."
             exit 1
