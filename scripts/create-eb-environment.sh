@@ -40,9 +40,23 @@ go build -o main . || {
 echo "Creating Procfile..."
 echo "web: ./main" > Procfile
 
+# Create .ebextensions directory and health check configuration file
+mkdir -p .ebextensions
+
+# Create a health check configuration file
+cat <<EOL > .ebextensions/01_healthcheck.config
+option_settings:
+  aws:elb:loadbalancer:
+    HealthCheckPath: "/health"
+    HealthCheckInterval: 30
+    HealthCheckTimeout: 5
+    HealthyThreshold: 2
+    UnhealthyThreshold: 2
+EOL
+
 # Package application including the binary and Procfile
 echo "Packaging the application..."
-zip -r application.zip . main Procfile
+zip -r application.zip . main Procfile .ebextensions
 
 # Create or find a security group for Elastic Beanstalk
 echo "Checking if security group $SECURITY_GROUP_NAME exists..."
@@ -58,15 +72,6 @@ if [ "$security_group_id" == "None" ]; then
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 22 --cidr 0.0.0.0/0 --region $REGION  # For SSH access
 else
     echo "Security group $SECURITY_GROUP_NAME already exists with ID $security_group_id."
-fi
-
-# Check and manage S3 bucket size limits
-echo "Checking S3 bucket size..."
-bucket_size=$(aws s3api list-objects --bucket "$S3_BUCKET" --query "[sum(Contents[].Size), length(Contents[])]" --output text)
-bucket_size_mb=$((bucket_size / 1024 / 1024))
-
-if [ "$bucket_size_mb" -gt 500 ]; then
-    echo "Warning: S3 bucket size is over 500MB. Consider cleaning up old versions."
 fi
 
 # Create S3 bucket if not exists
@@ -109,8 +114,7 @@ if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
         Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=$KEY_PAIR_NAME \
-        Namespace=aws:elasticbeanstalk:environment,OptionName=EnvironmentType,Value=LoadBalanced \
-        Namespace=aws:elasticbeanstalk:application,OptionName=ApplicationHealthcheckPath,Value="/health" \
+        Namespace=aws:elb:loadbalancer,OptionName=HealthCheckPath,Value="/health" \
         --region $REGION
 else
     echo "Creating Elastic Beanstalk environment $ENV_NAME..."
@@ -127,8 +131,8 @@ else
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
-        Namespace=aws:elasticbeanstalk:application,OptionName=ApplicationHealthcheckPath,Value="/health" \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=$KEY_PAIR_NAME \
+        Namespace=aws:elb:loadbalancer,OptionName=HealthCheckPath,Value="/health" \
         --region $REGION || {
             echo "Error: Failed to create Elastic Beanstalk environment. Exiting."
             exit 1
