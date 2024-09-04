@@ -1,0 +1,7 @@
+option_settings:
+  aws:elb:loadbalancer:
+    HealthCheckPath: "/health"
+    HealthCheckInterval: "10"
+    HealthyThreshold: "3"
+    UnhealthyThreshold: "5"
+    HealthCheckTimeout: "5"

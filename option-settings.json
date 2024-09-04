@@ -13,6 +13,11 @@
         "Namespace": "aws:elasticbeanstalk:environment",
         "OptionName": "EnvironmentType",
         "Value": "LoadBalanced"
+    },
+    {
+        "Namespace": "aws:elb:loadbalancer",
+        "OptionName": "HealthCheckPath",
+        "Value": "/health"
     }
 
 ]
