@@ -39,6 +39,7 @@ if [ "$security_group_id" == "None" ]; then
     echo "Adding inbound rules to security group $SECURITY_GROUP_NAME..."
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 80 --cidr 0.0.0.0/0 --region $REGION
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 443 --cidr 0.0.0.0/0 --region $REGION
+    aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 22 --cidr 0.0.0.0/0 --region $REGION  # For SSH access
 else
     echo "Security group $SECURITY_GROUP_NAME already exists with ID $security_group_id."
 fi
@@ -117,7 +118,13 @@ aws elasticbeanstalk wait environment-updated --application-name $APP_NAME --env
 
 # Check environment health and perform health check
 echo "Checking environment health..."
-aws elasticbeanstalk describe-environment-health --environment-name $ENV_NAME --attribute-names All --region $REGION
+health_status=$(aws elasticbeanstalk describe-environment-health --environment-name $ENV_NAME --attribute-names All --region $REGION --query "HealthStatus" --output text)
+if [ "$health_status" != "Ok" ]; then
+    echo "Environment health status: $health_status. Please investigate further."
+    # Additional logging or actions can be added here based on health status.
+else
+    echo "Environment health status is Ok."
+fi
 
 # Enable CloudWatch monitoring and logs if not enabled
 echo "Enabling CloudWatch monitoring and logs..."
