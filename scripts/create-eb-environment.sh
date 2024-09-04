@@ -36,6 +36,8 @@ go build -o main . || {
     exit 1
 }
 
+chmod +x .platform/hooks/postdeploy/01_reload_nginx.sh
+
 # Ensure the Procfile is present
 echo "Creating Procfile..."
 echo "web: ./main" > Procfile
