@@ -32,6 +32,25 @@ func (m *MongoClientWrapper) Database(name string, opts ...*options.DatabaseOpti
 // MongoClient holds the actual MongoDB client or a mock for testing.
 var MongoClient MongoClientInterface
 
+// MongoDatabaseInterface defines the interface for MongoDB database methods.
+type MongoDatabaseInterface interface {
+    Collection(name string, opts ...*options.CollectionOptions) MongoCollectionInterface
+}
+
+// MongoCollectionInterface defines the interface for MongoDB collection methods.
+type MongoCollectionInterface interface {
+    InsertOne(ctx context.Context, document interface{}) (*mongo.InsertOneResult, error)
+    Find(ctx context.Context, filter interface{}) (*mongo.Cursor, error)
+    FindOne(ctx context.Context, filter interface{}) MongoSingleResultInterface
+    DeleteOne(ctx context.Context, filter interface{}) (*mongo.DeleteResult, error)
+    UpdateOne(ctx context.Context, filter interface{}, update interface{}) (*mongo.UpdateResult, error)
+}
+
+// MongoSingleResultInterface defines the interface for MongoDB single result methods.
+type MongoSingleResultInterface interface {
+    Decode(v interface{}) error
+}
+
 // ConnectDB connects to the MongoDB using the provided URI.
 func ConnectDB(mongoURI string) MongoClientInterface {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
