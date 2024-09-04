@@ -38,8 +38,11 @@ func main() {
 	// Health check endpoint
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		if _, err := w.Write([]byte("ok")); err != nil {
+			log.Printf("Error writing health check response: %v", err)
+		}
 	}).Methods("GET")
+
 
 	// Server port from environment or default to 80
 	port := os.Getenv("PORT")
