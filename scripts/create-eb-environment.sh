@@ -22,7 +22,7 @@ go build -o main . || {
 # Package application including the binary and Procfile
 echo "Packaging the application..."
 echo "web: ./main" > Procfile
-zip -r application.zip . main Procfile
+zip -r application.zip . main Procfile .env
 
 # Check required environment variables
 if [ -z "$S3_BUCKET" ]; then
@@ -51,8 +51,8 @@ if [ "$security_group_id" == "None" ]; then
     echo "Adding inbound rules to security group $SECURITY_GROUP_NAME..."
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 80 --cidr 0.0.0.0/0 --region $REGION
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 443 --cidr 0.0.0.0/0 --region $REGION
+    aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 3000 --cidr 0.0.0.0/0 --region $REGION  # Allow port 3000
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 22 --cidr 0.0.0.0/0 --region $REGION  # For SSH access
-    aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 3000 --cidr 0.0.0.0/0 --region $REGION # For app access
 else
     echo "Security group $SECURITY_GROUP_NAME already exists with ID $security_group_id."
 fi
@@ -97,6 +97,8 @@ if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
         --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=my-ec2-keypair \
+        --option-settings Namespace=aws:elb:listener:80,OptionName=ListenerProtocol,Value=HTTP \
+        --option-settings Namespace=aws:elb:listener:80,OptionName=InstancePort,Value=3000 \
         --region $REGION
 else
     echo "Creating Elastic Beanstalk environment $ENV_NAME..."
@@ -113,7 +115,9 @@ else
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
-        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=my-ec2-keypair \
+        Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=my-ec2-keypair \
+        Namespace=aws:elb:listener:80,OptionName=ListenerProtocol,Value=HTTP \
+        Namespace=aws:elb:listener:80,OptionName=InstancePort,Value=3000 \
         --region $REGION || {
             echo "Error: Failed to create Elastic Beanstalk environment. Exiting."
             exit 1
