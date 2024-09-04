@@ -11,18 +11,7 @@ VPC_ID=${VPC_ID}
 SUBNET_ID=${SUBNET_ID}
 VERSION_LABEL="v1"
 SOLUTION_STACK_NAME="64bit Amazon Linux 2023 v4.1.3 running Go 1"
-
-# Build the Go application before packaging
-echo "Building the Go application..."
-go build -o main . || {
-    echo "Error: Failed to build the application. Ensure Go is installed and paths are set correctly. Exiting."
-    exit 1
-}
-
-# Package application including the binary and Procfile
-echo "Packaging the application..."
-echo "web: ./main" > Procfile
-zip -r application.zip . main Procfile
+KEY_PAIR_NAME="my-ec2-keypair" # Update this with your actual key pair name
 
 # Check required environment variables
 if [ -z "$S3_BUCKET" ]; then
@@ -40,6 +29,21 @@ if [ -z "$VPC_ID" ] || [ -z "$SUBNET_ID" ]; then
     exit 1
 fi
 
+# Build the Go application before packaging
+echo "Building the Go application..."
+go build -o main . || {
+    echo "Error: Failed to build the application. Ensure Go is installed and paths are set correctly. Exiting."
+    exit 1
+}
+
+# Ensure the Procfile is present
+echo "Creating Procfile..."
+echo "web: ./main" > Procfile
+
+# Package application including the binary and Procfile
+echo "Packaging the application..."
+zip -r application.zip . main Procfile
+
 # Create or find a security group for Elastic Beanstalk
 echo "Checking if security group $SECURITY_GROUP_NAME exists..."
 security_group_id=$(aws ec2 describe-security-groups --filters Name=group-name,Values=$SECURITY_GROUP_NAME --query "SecurityGroups[0].GroupId" --output text --region $REGION)
@@ -51,7 +55,6 @@ if [ "$security_group_id" == "None" ]; then
     echo "Adding inbound rules to security group $SECURITY_GROUP_NAME..."
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 80 --cidr 0.0.0.0/0 --region $REGION
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 443 --cidr 0.0.0.0/0 --region $REGION
-    aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 3000 --cidr 0.0.0.0/0 --region $REGION  # For Application access
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 22 --cidr 0.0.0.0/0 --region $REGION  # For SSH access
 else
     echo "Security group $SECURITY_GROUP_NAME already exists with ID $security_group_id."
@@ -93,10 +96,10 @@ if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
         --environment-name $ENV_NAME \
         --version-label v1 \
         --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
-        --option-settings Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
-        --option-settings Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
-        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
-        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=my-ec2-keypair \
+        Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
+        Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
+        Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
+        Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=$KEY_PAIR_NAME \
         --region $REGION
 else
     echo "Creating Elastic Beanstalk environment $ENV_NAME..."
@@ -113,7 +116,7 @@ else
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
-        --option-settings Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=my-ec2-keypair \
+        Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=$KEY_PAIR_NAME \
         --region $REGION || {
             echo "Error: Failed to create Elastic Beanstalk environment. Exiting."
             exit 1

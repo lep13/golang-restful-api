@@ -22,17 +22,6 @@ func Initialize(mongoURI string) {
     collection = db.GetCollection(client)
 }
 
-// HealthCheck provides a simple health check endpoint
-func HealthCheck(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "application/json")
-    response := map[string]string{"status": "healthy"}
-    
-    if err := json.NewEncoder(w).Encode(response); err != nil {
-        http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-        log.Printf("Error encoding response: %v", err)  // Log the error for debugging
-    }
-}
-
 // CreateUser creates a new user in the database
 func CreateUser(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")

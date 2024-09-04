@@ -25,7 +25,6 @@ func main() {
     handlers.Initialize(mongoURI)
 
     r := mux.NewRouter()
-    r.HandleFunc("/health", handlers.HealthCheck).Methods("GET") // Health check endpoint
     r.HandleFunc("/users", handlers.CreateUser).Methods("POST")
     r.HandleFunc("/users", handlers.GetUsers).Methods("GET")
     r.HandleFunc("/users/{id}", handlers.GetUser).Methods("GET")
