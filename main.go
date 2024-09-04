@@ -31,6 +31,9 @@ func main() {
 	r.HandleFunc("/users/{id}", handlers.UpdateUser).Methods("PUT")
 	r.HandleFunc("/users/{id}", handlers.DeleteUser).Methods("DELETE")
 
+	// Health check endpoint
+	r.HandleFunc("/health", handlers.HealthCheck).Methods("GET")
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "80"

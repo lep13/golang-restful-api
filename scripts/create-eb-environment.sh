@@ -60,6 +60,15 @@ else
     echo "Security group $SECURITY_GROUP_NAME already exists with ID $security_group_id."
 fi
 
+# Check and manage S3 bucket size limits
+echo "Checking S3 bucket size..."
+bucket_size=$(aws s3api list-objects --bucket "$S3_BUCKET" --query "[sum(Contents[].Size), length(Contents[])]" --output text)
+bucket_size_mb=$((bucket_size / 1024 / 1024))
+
+if [ "$bucket_size_mb" -gt 500 ]; then
+    echo "Warning: S3 bucket size is over 500MB. Consider cleaning up old versions."
+fi
+
 # Create S3 bucket if not exists
 if aws s3api head-bucket --bucket "$S3_BUCKET" --region $REGION 2>/dev/null; then
     echo "S3 bucket $S3_BUCKET already exists."
@@ -100,6 +109,8 @@ if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
         Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=$KEY_PAIR_NAME \
+        Namespace=aws:elasticbeanstalk:environment,OptionName=LoadBalancerHTTPPort,Value=80 \
+        Namespace=aws:elasticbeanstalk:environment,OptionName=ApplicationHealthcheckPath,Value="/health" \
         --region $REGION
 else
     echo "Creating Elastic Beanstalk environment $ENV_NAME..."
@@ -116,6 +127,8 @@ else
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
+        Namespace=aws:elasticbeanstalk:environment,OptionName=LoadBalancerHTTPPort,Value=80 \
+        Namespace=aws:elasticbeanstalk:environment,OptionName=ApplicationHealthcheckPath,Value="/health" \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=$KEY_PAIR_NAME \
         --region $REGION || {
             echo "Error: Failed to create Elastic Beanstalk environment. Exiting."
