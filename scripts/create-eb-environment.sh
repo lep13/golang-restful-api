@@ -40,23 +40,20 @@ go build -o main . || {
 echo "Creating Procfile..."
 echo "web: ./main" > Procfile
 
-# Create .ebextensions directory and health check configuration file
+# Update/Create .ebextensions directory for configuration settings
 mkdir -p .ebextensions
 
-# Create a health check configuration file
-cat <<EOL > .ebextensions/01_healthcheck.config
+cat <<EOL > .ebextensions/01_cloudwatch.config
 option_settings:
-  aws:elb:loadbalancer:
-    HealthCheckPath: "/health"
-    HealthCheckInterval: 30
-    HealthCheckTimeout: 5
-    HealthyThreshold: 2
-    UnhealthyThreshold: 2
+  aws:elasticbeanstalk:cloudwatch:logs:
+    StreamLogs: true
+    DeleteOnTerminate: true
+    RetentionInDays: 14
 EOL
 
-# Package application including the binary and Procfile
+# Package application including the binary, Procfile, and .ebextensions directory
 echo "Packaging the application..."
-zip -r application.zip . main Procfile .ebextensions
+zip -r application.zip . main Procfile .ebextensions option-settings.json
 
 # Create or find a security group for Elastic Beanstalk
 echo "Checking if security group $SECURITY_GROUP_NAME exists..."
@@ -114,7 +111,6 @@ if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
         Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=$KEY_PAIR_NAME \
-        Namespace=aws:elb:loadbalancer,OptionName=HealthCheckPath,Value="/health" \
         --region $REGION
 else
     echo "Creating Elastic Beanstalk environment $ENV_NAME..."
@@ -132,7 +128,6 @@ else
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=$KEY_PAIR_NAME \
-        Namespace=aws:elb:loadbalancer,OptionName=HealthCheckPath,Value="/health" \
         --region $REGION || {
             echo "Error: Failed to create Elastic Beanstalk environment. Exiting."
             exit 1
