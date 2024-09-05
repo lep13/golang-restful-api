@@ -11,7 +11,7 @@ VPC_ID=${VPC_ID}
 SUBNET_ID=${SUBNET_ID}
 VERSION_LABEL="v1"
 SOLUTION_STACK_NAME="64bit Amazon Linux 2023 v4.1.3 running Go 1"
-KEY_PAIR_NAME="my-ec2-keypair" 
+KEY_PAIR_NAME="my-ec2-keypair" # Update this with your actual key pair name
 
 # Check required environment variables
 if [ -z "$S3_BUCKET" ]; then
@@ -64,9 +64,8 @@ if [ "$security_group_id" == "None" ]; then
     security_group_id=$(aws ec2 create-security-group --group-name $SECURITY_GROUP_NAME --description "Security group for Elastic Beanstalk environment" --vpc-id $VPC_ID --region $REGION --query 'GroupId' --output text)
     
     echo "Adding inbound rules to security group $SECURITY_GROUP_NAME..."
+    aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 80 --cidr 0.0.0.0/0 --region $REGION
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 5000 --cidr 0.0.0.0/0 --region $REGION
-    aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 5000 --cidr ::/0 --region $REGION
-    aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 443 --cidr 0.0.0.0/0 --region $REGION
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 22 --cidr 0.0.0.0/0 --region $REGION  # For SSH access
 else
     echo "Security group $SECURITY_GROUP_NAME already exists with ID $security_group_id."
@@ -99,7 +98,6 @@ aws elasticbeanstalk create-application-version --application-name $APP_NAME --v
 }
 
 # Check if environment exists and update or create accordingly
-# Check if environment exists and update or create accordingly
 env_exists=$(aws elasticbeanstalk describe-environments --application-name $APP_NAME --environment-names $ENV_NAME --query "Environments[0].Status" --output text --region $REGION)
 
 if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
@@ -113,8 +111,6 @@ if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
         Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=$KEY_PAIR_NAME \
-        Namespace=aws:elasticbeanstalk:environment,OptionName=LoadBalancerHTTPPort,Value=80 \
-        Namespace=aws:elasticbeanstalk:environment,OptionName=InstancePort,Value=5000 \
         --region $REGION
 else
     echo "Creating Elastic Beanstalk environment $ENV_NAME..."
@@ -131,9 +127,6 @@ else
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
-        Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=$KEY_PAIR_NAME \
-        Namespace=aws:elasticbeanstalk:environment,OptionName=LoadBalancerHTTPPort,Value=80 \
-        Namespace=aws:elasticbeanstalk:environment,OptionName=InstancePort,Value=5000 \
         --region $REGION || {
             echo "Error: Failed to create Elastic Beanstalk environment. Exiting."
             exit 1
