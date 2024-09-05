@@ -36,15 +36,24 @@ go build -o main . || {
     exit 1
 }
 
-chmod +x .platform/hooks/postdeploy/01_reload_nginx.sh
-
 # Ensure the Procfile is present
 echo "Creating Procfile..."
 echo "web: ./main" > Procfile
 
-# Package application including the binary and Procfile
+# Update/Create .ebextensions directory for configuration settings
+mkdir -p .ebextensions
+
+cat <<EOL > .ebextensions/01_cloudwatch.config
+option_settings:
+  aws:elasticbeanstalk:cloudwatch:logs:
+    StreamLogs: true
+    DeleteOnTerminate: true
+    RetentionInDays: 14
+EOL
+
+# Package application including the binary, Procfile, and .ebextensions directory
 echo "Packaging the application..."
-zip -r application.zip . main Procfile
+zip -r application.zip . main Procfile .ebextensions option-settings.json
 
 # Create or find a security group for Elastic Beanstalk
 echo "Checking if security group $SECURITY_GROUP_NAME exists..."
@@ -55,7 +64,7 @@ if [ "$security_group_id" == "None" ]; then
     security_group_id=$(aws ec2 create-security-group --group-name $SECURITY_GROUP_NAME --description "Security group for Elastic Beanstalk environment" --vpc-id $VPC_ID --region $REGION --query 'GroupId' --output text)
     
     echo "Adding inbound rules to security group $SECURITY_GROUP_NAME..."
-    aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 80 --cidr 0.0.0.0/0 --region $REGION
+    aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 5000 --cidr 0.0.0.0/0 --region $REGION
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 443 --cidr 0.0.0.0/0 --region $REGION
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 22 --cidr 0.0.0.0/0 --region $REGION  # For SSH access
 else
