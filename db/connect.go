@@ -51,6 +51,45 @@ type MongoSingleResultInterface interface {
     Decode(v interface{}) error
 }
 
+// MongoCollectionWrapper wraps a mongo.Collection and implements MongoCollectionInterface.
+type MongoCollectionWrapper struct {
+    collection *mongo.Collection
+}
+
+// NewMongoCollectionWrapper creates a new MongoCollectionWrapper.
+func NewMongoCollectionWrapper(collection *mongo.Collection) MongoCollectionInterface {
+    return &MongoCollectionWrapper{collection: collection}
+}
+
+func (w *MongoCollectionWrapper) InsertOne(ctx context.Context, document interface{}) (*mongo.InsertOneResult, error) {
+    return w.collection.InsertOne(ctx, document)
+}
+
+func (w *MongoCollectionWrapper) Find(ctx context.Context, filter interface{}) (*mongo.Cursor, error) {
+    return w.collection.Find(ctx, filter)
+}
+
+func (w *MongoCollectionWrapper) FindOne(ctx context.Context, filter interface{}) MongoSingleResultInterface {
+    return &MongoSingleResultWrapper{result: w.collection.FindOne(ctx, filter)}
+}
+
+func (w *MongoCollectionWrapper) DeleteOne(ctx context.Context, filter interface{}) (*mongo.DeleteResult, error) {
+    return w.collection.DeleteOne(ctx, filter)
+}
+
+func (w *MongoCollectionWrapper) UpdateOne(ctx context.Context, filter interface{}, update interface{}) (*mongo.UpdateResult, error) {
+    return w.collection.UpdateOne(ctx, filter, update)
+}
+
+// MongoSingleResultWrapper wraps mongo.SingleResult to implement MongoSingleResultInterface
+type MongoSingleResultWrapper struct {
+    result *mongo.SingleResult
+}
+
+func (r *MongoSingleResultWrapper) Decode(v interface{}) error {
+    return r.result.Decode(v)
+}
+
 // ConnectDB connects to the MongoDB using the provided URI.
 func ConnectDB(mongoURI string) MongoClientInterface {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
