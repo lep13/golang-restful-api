@@ -32,6 +32,12 @@ jobs:
       - name: Build Application
         run: go build -v ./...
 
+      - name: Upload Build Logs (Artifacts)
+        uses: actions/upload-artifact@v2
+        with:
+          name: build-logs
+          path: ./build.log
+
   # Vulnerability scan, but don't stop deployment on issues
   security_scan:
     runs-on: ubuntu-latest
@@ -50,9 +56,9 @@ jobs:
 
       - name: Run Gosec Security Scan
         run: |
-          gosec ./... > gosec-report.txt || true  # Don't fail on issues
+          gosec ./... > gosec-report.txt || true  
           cat gosec-report.txt
-        continue-on-error: true  # Continue even if issues are found
+        # continue-on-error: true  # Continue even if issues are found
 
       - name: Install Trivy for Vulnerability Scans
         run: |
@@ -61,8 +67,7 @@ jobs:
           sudo dpkg -i trivy_0.40.0_Linux-64bit.deb
 
       - name: Run Trivy Vulnerability Scan
-        run: |
-          trivy fs --exit-code 0 --severity CRITICAL,HIGH,MEDIUM --ignore-unfixed . || true  # Continue on scan failures
+        run: trivy fs --exit-code 0 --severity CRITICAL,HIGH,MEDIUM --ignore-unfixed . || true  # Continue on scan failures
 
       - name: Install Snyk (For Dependency Vulnerability Scanning)
         run: npm install -g snyk
@@ -129,7 +134,9 @@ jobs:
 
   rollback:
     runs-on: ubuntu-latest
+    if: failure() && needs.deploy.result == 'failure'
     steps:
-      - name: Perform Rollback if Failed
-        if: failure()
-        run: aws elasticbeanstalk rebuild-environment --environment-name ${{ secrets.EB_ENV_NAME }} --region ${{ secrets.AWS_REGION }}
+      - name: Perform Rollback if Deployment Failed
+        run: |
+          echo "Performing rollback due to deployment failure..."
+          aws elasticbeanstalk rebuild-environment --environment-name ${{ secrets.EB_ENV_NAME }} --region ${{ secrets.AWS_REGION }}
