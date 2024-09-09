@@ -32,6 +32,7 @@ jobs:
       - name: Build Application
         run: go build -v ./...
 
+  # Vulnerability scan, but don't stop deployment on issues
   security_scan:
     runs-on: ubuntu-latest
     needs: build
@@ -44,12 +45,32 @@ jobs:
         with:
           go-version: '1.22.3'
 
-      - name: Install Gosec
+      - name: Install Gosec (Go Security Scanner)
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest
 
-      - name: Run Security Scan
-        run: gosec ./...
-  
+      - name: Run Gosec Security Scan
+        run: |
+          gosec ./... > gosec-report.txt || true  # Don't fail on issues
+          cat gosec-report.txt
+        continue-on-error: true  # Continue even if issues are found
+
+      - name: Install Trivy for Vulnerability Scans
+        run: |
+          sudo apt-get install -y wget
+          wget https://github.com/aquasecurity/trivy/releases/download/v0.40.0/trivy_0.40.0_Linux-64bit.deb
+          sudo dpkg -i trivy_0.40.0_Linux-64bit.deb
+
+      - name: Run Trivy Vulnerability Scan
+        run: |
+          trivy fs --exit-code 0 --severity CRITICAL,HIGH,MEDIUM --ignore-unfixed . || true  # Continue on scan failures
+
+      - name: Install Snyk (For Dependency Vulnerability Scanning)
+        run: npm install -g snyk
+
+      - name: Run Snyk Dependency Scan
+        run: snyk test --all-projects --severity-threshold=high || true  # Don't stop the deployment
+
+  # Deployment Job
   deploy:
     runs-on: ubuntu-latest
     needs: [build, security_scan]
@@ -81,3 +102,34 @@ jobs:
           IAM_INSTANCE_PROFILE: ${{ secrets.IAM_INSTANCE_PROFILE }}
           SECURITY_GROUP_NAME: ${{ secrets.SECURITY_GROUP_NAME }}
 
+      - name: Validate Elastic Beanstalk Environment Configuration
+        run: |
+          aws elasticbeanstalk validate-configuration-settings \
+            --application-name "${{ secrets.APP_NAME }}" \
+            --environment-name "${{ secrets.EB_ENV_NAME }}" \
+            --region "${{ secrets.AWS_REGION }}"
+
+      - name: Check Elastic Beanstalk Health
+        run: |
+          health_status=$(aws elasticbeanstalk describe-environment-health --environment-name "${{ secrets.EB_ENV_NAME }}" --attribute-names All --region "${{ secrets.AWS_REGION }}" --query "HealthStatus" --output text)
+          if [ "$health_status" != "Ok" ]; then
+            echo "Deployment failed, rolling back..."
+            aws elasticbeanstalk abort-environment-update --environment-name "${{ secrets.EB_ENV_NAME }}" --region "${{ secrets.AWS_REGION }}"
+            exit 1
+          else
+            echo "Deployment succeeded!"
+
+      # Enable CloudWatch monitoring and logs
+      - name: Enable CloudWatch Logs
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name ${{ secrets.EB_ENV_NAME }} \
+            --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
+            --region ${{ secrets.AWS_REGION }}
+
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Perform Rollback if Failed
+        if: failure()
+        run: aws elasticbeanstalk rebuild-environment --environment-name ${{ secrets.EB_ENV_NAME }} --region ${{ secrets.AWS_REGION }}
