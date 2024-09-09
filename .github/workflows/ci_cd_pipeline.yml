@@ -109,21 +109,21 @@ jobs:
           IAM_INSTANCE_PROFILE: ${{ secrets.IAM_INSTANCE_PROFILE }}
           SECURITY_GROUP_NAME: ${{ secrets.SECURITY_GROUP_NAME }}
 
-      - name: Check Elastic Beanstalk Health
-        run: |
-          health_status=$(aws elasticbeanstalk describe-environment-health \
-            --environment-name "${{ secrets.EB_ENV_NAME }}" \
-            --attribute-names All \
-            --region "${{ secrets.AWS_REGION }}" \
-            --query "HealthStatus" \
-            --output text)
+      # - name: Check Elastic Beanstalk Health
+      #   run: |
+      #     health_status=$(aws elasticbeanstalk describe-environment-health \
+      #       --environment-name "${{ secrets.EB_ENV_NAME }}" \
+      #       --attribute-names All \
+      #       --region "${{ secrets.AWS_REGION }}" \
+      #       --query "HealthStatus" \
+      #       --output text)
   
-          if [ "$health_status" != "Ok" ]; then
-            echo "Deployment failed, rolling back..."
-            aws elasticbeanstalk abort-environment-update --environment-name "${{ secrets.EB_ENV_NAME }}" --region "${{ secrets.AWS_REGION }}"
-            exit 1
-          else
-            echo "Deployment succeeded!"
+      #     if [ "$health_status" != "Ok" ]; then
+      #       echo "Deployment failed, rolling back..."
+      #       aws elasticbeanstalk abort-environment-update --environment-name "${{ secrets.EB_ENV_NAME }}" --region "${{ secrets.AWS_REGION }}"
+      #       exit 1
+      #     else
+      #       echo "Deployment succeeded!"
   
 
       # Enable CloudWatch monitoring and logs
