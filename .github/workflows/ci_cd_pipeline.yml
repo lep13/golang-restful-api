@@ -32,12 +32,6 @@ jobs:
       - name: Build Application
         run: go build -v ./...
 
-      - name: Upload Build Logs (Artifacts)
-        uses: actions/upload-artifact@v2
-        with:
-          name: build-logs
-          path: ./build.log
-
   # Vulnerability scan, but don't stop deployment on issues
   security_scan:
     runs-on: ubuntu-latest
@@ -60,6 +54,12 @@ jobs:
           cat gosec-report.txt
         # continue-on-error: true  # Continue even if issues are found
 
+      - name: Upload Gosec Report (Artifact)
+        uses: actions/upload-artifact@v2
+        with:
+          name: gosec-report
+          path: gosec-report.txt
+
       - name: Install Trivy for Vulnerability Scans
         run: |
           sudo apt-get install -y wget
@@ -68,12 +68,6 @@ jobs:
 
       - name: Run Trivy Vulnerability Scan
         run: trivy fs --exit-code 0 --severity CRITICAL,HIGH,MEDIUM --ignore-unfixed . || true  # Continue on scan failures
-
-      - name: Install Snyk (For Dependency Vulnerability Scanning)
-        run: npm install -g snyk
-
-      - name: Run Snyk Dependency Scan
-        run: snyk test --all-projects --severity-threshold=high || true  # Don't stop the deployment
 
   # Deployment Job
   deploy:
@@ -113,6 +107,7 @@ jobs:
             --application-name "${{ secrets.APP_NAME }}" \
             --environment-name "${{ secrets.EB_ENV_NAME }}" \
             --region "${{ secrets.AWS_REGION }}"
+            --option-settings []
 
       - name: Check Elastic Beanstalk Health
         run: |
@@ -134,7 +129,8 @@ jobs:
 
   rollback:
     runs-on: ubuntu-latest
-    if: failure() && needs.deploy.result == 'failure'
+    needs: [deploy]
+    if: needs.deploy.result == 'failure'
     steps:
       - name: Perform Rollback if Deployment Failed
         run: |
