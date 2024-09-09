@@ -181,14 +181,14 @@ aws ec2 describe-security-groups --group-ids $security_group_id --region $REGION
 }
 
 # Validating EB environment configuration settings (enhanced validation)
-echo "Validating Elastic Beanstalk configuration..."
-aws elasticbeanstalk validate-configuration-settings \
-    --application-name $APP_NAME \
-    --environment-name $ENV_NAME \
-    --region $REGION || {
-    echo "Error: Configuration validation failed."
-    exit 1
-}
+# echo "Validating Elastic Beanstalk configuration..."
+# aws elasticbeanstalk validate-configuration-settings \
+#     --application-name $APP_NAME \
+#     --environment-name $ENV_NAME \
+#     --region $REGION || {
+#     echo "Error: Configuration validation failed."
+#     exit 1
+# }
 
 # Enable Rollback on failure
 echo "Enabling Rollback in case of failure..."

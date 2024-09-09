@@ -65,11 +65,13 @@ jobs:
           sudo apt-get install -y wget
           wget https://github.com/aquasecurity/trivy/releases/download/v0.40.0/trivy_0.40.0_Linux-64bit.deb
           sudo dpkg -i trivy_0.40.0_Linux-64bit.deb
-
+  
       - name: Run Trivy Vulnerability Scan
-        run: trivy fs --exit-code 0 --severity CRITICAL,HIGH,MEDIUM --ignore-unfixed . || true  # Continue on scan failures
-
-      - name: Upload Trivy Report (Artifact)
+        run: |
+          trivy fs --exit-code 0 --severity CRITICAL,HIGH,MEDIUM --ignore-unfixed . > trivy-report.txt || true  # Continue on scan failures
+          cat trivy-report.txt
+  
+      - name: Upload Trivy Report
         uses: actions/upload-artifact@v2
         with:
           name: trivy-report
