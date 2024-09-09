@@ -134,21 +134,37 @@ else
         }
 fi
 
-# Wait for environment to be ready
-echo "Waiting for the environment to be ready..."
-aws elasticbeanstalk wait environment-updated --application-name $APP_NAME --environment-names $ENV_NAME --region $REGION || {
-    echo "Error: Environment update did not complete successfully. Exiting."
-    exit 1
-}
+# Wait for environment to be ready with extended timeout (600 seconds, 15 retries)
+echo "Waiting for the environment to be ready with extended timeout..."
+MAX_ATTEMPTS=15  # Increase number of attempts
+DELAY=40  # Increase the delay between retries to allow more time for the environment to update
 
-# Check environment health and perform health check
-echo "Checking environment health..."
-health_status=$(aws elasticbeanstalk describe-environment-health --environment-name $ENV_NAME --attribute-names All --region $REGION --query "HealthStatus" --output text)
+for (( i=0; i<$MAX_ATTEMPTS; i++ ))
+do
+    health_status=$(aws elasticbeanstalk describe-environment-health --environment-name $ENV_NAME --attribute-names All --region $REGION --query "HealthStatus" --output text)
+    
+    if [ "$health_status" == "Ok" ]; then
+        echo "Environment health status is Ok. Proceeding with the next step."
+        break
+    else
+        echo "Attempt $((i+1))/$MAX_ATTEMPTS: Waiting for environment to be ready... (Health: $health_status)"
+    fi
+    
+    if [ $i -eq $((MAX_ATTEMPTS-1)) ]; then
+        echo "Max attempts exceeded. Deployment failed."
+        exit 1
+    fi
+    
+    sleep $DELAY
+done
+
+# Check environment health explicitly after waiting
 if [ "$health_status" != "Ok" ]; then
-    echo "Environment health status: $health_status. Please investigate further."
-else
-    echo "Environment health status is Ok."
+    echo "Error: Environment health status is not Ok after waiting. Exiting."
+    exit 1
 fi
+
+echo "Deployment to Elastic Beanstalk completed."
 
 # Enabling CloudWatch logs if not already enabled
 echo "Enabling CloudWatch Logs..."
@@ -184,4 +200,4 @@ aws elasticbeanstalk update-environment \
     exit 1
 }
 
-echo "Deployment to Elastic Beanstalk completed successfully."
+echo "Deployment completed successfully."
