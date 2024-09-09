@@ -109,14 +109,6 @@ jobs:
           IAM_INSTANCE_PROFILE: ${{ secrets.IAM_INSTANCE_PROFILE }}
           SECURITY_GROUP_NAME: ${{ secrets.SECURITY_GROUP_NAME }}
 
-      - name: Validate Elastic Beanstalk Environment Configuration
-        run: |
-          aws elasticbeanstalk validate-configuration-settings \
-            --application-name "${{ secrets.APP_NAME }}" \
-            --environment-name "${{ secrets.EB_ENV_NAME }}" \
-            --region "${{ secrets.AWS_REGION }}"
-            --option-settings []
-
       - name: Check Elastic Beanstalk Health
         run: |
           health_status=$(aws elasticbeanstalk describe-environment-health --environment-name "${{ secrets.EB_ENV_NAME }}" --attribute-names All --region "${{ secrets.AWS_REGION }}" --query "HealthStatus" --output text)

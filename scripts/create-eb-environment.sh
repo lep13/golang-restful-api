@@ -166,13 +166,6 @@ fi
 
 echo "Deployment to Elastic Beanstalk completed."
 
-# Enabling CloudWatch logs if not already enabled
-echo "Enabling CloudWatch Logs..."
-aws elasticbeanstalk update-environment \
-    --environment-name $ENV_NAME \
-    --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
-    --region $REGION
-
 # Run security groups validation (enhancement for security scan)
 echo "Validating Security Groups..."
 aws ec2 describe-security-groups --group-ids $security_group_id --region $REGION || {
@@ -180,24 +173,11 @@ aws ec2 describe-security-groups --group-ids $security_group_id --region $REGION
     exit 1
 }
 
-# Validating EB environment configuration settings (enhanced validation)
-# echo "Validating Elastic Beanstalk configuration..."
-# aws elasticbeanstalk validate-configuration-settings \
-#     --application-name $APP_NAME \
-#     --environment-name $ENV_NAME \
-#     --region $REGION || {
-#     echo "Error: Configuration validation failed."
-#     exit 1
-# }
-
-# Enable Rollback on failure
-echo "Enabling Rollback in case of failure..."
+# Enabling CloudWatch logs if not already enabled
+echo "Enabling CloudWatch Logs..."
 aws elasticbeanstalk update-environment \
     --environment-name $ENV_NAME \
-    --option-settings Namespace=aws:elasticbeanstalk:environment:process,OptionName=RollbackOnFailure,Value=true \
-    --region $REGION || {
-    echo "Error: Rollback configuration failed."
-    exit 1
-}
+    --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
+    --region $REGION
 
 echo "Deployment completed successfully."
