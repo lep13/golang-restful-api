@@ -173,11 +173,19 @@ aws ec2 describe-security-groups --group-ids $security_group_id --region $REGION
     exit 1
 }
 
-# Enabling CloudWatch logs if not already enabled
+# Enabling CloudWatch logs only if the environment is in the 'Ready' state
 echo "Enabling CloudWatch Logs..."
-aws elasticbeanstalk update-environment \
-    --environment-name $ENV_NAME \
-    --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
-    --region $REGION
+env_status=$(aws elasticbeanstalk describe-environment-health --environment-name $ENV_NAME --attribute-names All --region $REGION --query "HealthStatus" --output text)
+
+if [ "$env_status" == "Ok" ]; then
+    aws elasticbeanstalk update-environment \
+        --environment-name $ENV_NAME \
+        --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
+        --region $REGION
+    echo "CloudWatch Logs enabled."
+else
+    echo "Environment is not in 'Ready' state. Skipping CloudWatch Logs setup."
+fi
 
 echo "Deployment completed successfully."
+
