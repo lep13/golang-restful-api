@@ -173,19 +173,39 @@ aws ec2 describe-security-groups --group-ids $security_group_id --region $REGION
     exit 1
 }
 
-# Enabling CloudWatch logs only if the environment is in the 'Ready' state
-echo "Enabling CloudWatch Logs..."
-env_status=$(aws elasticbeanstalk describe-environment-health --environment-name $ENV_NAME --attribute-names All --region $REGION --query "HealthStatus" --output text)
+# Wait for environment to be fully ready before enabling CloudWatch logs
+echo "Waiting for the environment to be in the Ready state..."
 
-if [ "$env_status" == "Ok" ]; then
-    aws elasticbeanstalk update-environment \
-        --environment-name $ENV_NAME \
-        --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
-        --region $REGION
-    echo "CloudWatch Logs enabled."
-else
-    echo "Environment is not in 'Ready' state. Skipping CloudWatch Logs setup."
-fi
+MAX_ATTEMPTS=10  # Maximum number of attempts to check readiness
+DELAY=30  # Delay between each attempt in seconds
+
+for (( i=0; i<$MAX_ATTEMPTS; i++ ))
+do
+    env_status=$(aws elasticbeanstalk describe-environments --environment-names $ENV_NAME --query "Environments[0].Status" --output text --region $REGION)
+
+    if [ "$env_status" == "Ready" ]; then
+        echo "Environment is in Ready state. Proceeding to enable CloudWatch logs."
+        break
+    else
+        echo "Attempt $((i+1))/$MAX_ATTEMPTS: Environment is not Ready yet (Status: $env_status). Retrying in $DELAY seconds..."
+    fi
+
+    if [ $i -eq $((MAX_ATTEMPTS-1)) ]; then
+        echo "Max attempts exceeded. Environment is not in Ready state. Exiting."
+        exit 1
+    fi
+
+    sleep $DELAY
+done
+
+# Now that the environment is ready, enable CloudWatch logs
+echo "Enabling CloudWatch Logs..."
+aws elasticbeanstalk update-environment \
+    --environment-name $ENV_NAME \
+    --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
+    --region $REGION
+
+echo "CloudWatch logs have been successfully enabled."
 
 echo "Deployment completed successfully."
 
