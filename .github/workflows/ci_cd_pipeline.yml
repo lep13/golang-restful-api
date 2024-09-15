@@ -108,15 +108,6 @@ jobs:
           SUBNET_ID: ${{ secrets.SUBNET_ID }}
           IAM_INSTANCE_PROFILE: ${{ secrets.IAM_INSTANCE_PROFILE }}
           SECURITY_GROUP_NAME: ${{ secrets.SECURITY_GROUP_NAME }}
-  
-
-      # Enable CloudWatch monitoring and logs
-      - name: Enable CloudWatch Logs
-        run: |
-          aws elasticbeanstalk update-environment \
-            --environment-name ${{ secrets.EB_ENV_NAME }} \
-            --option-settings Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
-            --region ${{ secrets.AWS_REGION }}
 
   rollback:
     runs-on: ubuntu-latest
