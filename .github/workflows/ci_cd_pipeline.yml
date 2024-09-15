@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: '1.22.3'
 
@@ -38,10 +38,10 @@ jobs:
     needs: build
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: '1.22.3'
 
@@ -55,7 +55,7 @@ jobs:
         # continue-on-error: true  # Continue even if issues are found
 
       - name: Upload Gosec Report (Artifact)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: gosec-report
           path: gosec-report.txt
@@ -72,7 +72,7 @@ jobs:
           cat trivy-report.txt
   
       - name: Upload Trivy Report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: trivy-report
           path: trivy-report.txt
@@ -108,22 +108,6 @@ jobs:
           SUBNET_ID: ${{ secrets.SUBNET_ID }}
           IAM_INSTANCE_PROFILE: ${{ secrets.IAM_INSTANCE_PROFILE }}
           SECURITY_GROUP_NAME: ${{ secrets.SECURITY_GROUP_NAME }}
-
-      # - name: Check Elastic Beanstalk Health
-      #   run: |
-      #     health_status=$(aws elasticbeanstalk describe-environment-health \
-      #       --environment-name "${{ secrets.EB_ENV_NAME }}" \
-      #       --attribute-names All \
-      #       --region "${{ secrets.AWS_REGION }}" \
-      #       --query "HealthStatus" \
-      #       --output text)
-  
-      #     if [ "$health_status" != "Ok" ]; then
-      #       echo "Deployment failed, rolling back..."
-      #       aws elasticbeanstalk abort-environment-update --environment-name "${{ secrets.EB_ENV_NAME }}" --region "${{ secrets.AWS_REGION }}"
-      #       exit 1
-      #     else
-      #       echo "Deployment succeeded!"
   
 
       # Enable CloudWatch monitoring and logs
