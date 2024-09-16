@@ -18,6 +18,10 @@
         "Namespace": "aws:elb:loadbalancer",
         "OptionName": "HealthCheckPath",
         "Value": "/health"
+    },
+    {
+        "Namespace": "aws:elasticbeanstalk:container:docker",
+        "OptionName": "ContainerPort",
+        "Value": "5000"
     }
-
 ]
