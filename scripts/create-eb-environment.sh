@@ -13,23 +13,6 @@ VERSION_LABEL="v1"
 SOLUTION_STACK_NAME="64bit Amazon Linux 2 v4.0.2 running Docker"
 KEY_PAIR_NAME="my-ec2-keypair" 
 
-# Create necessary directories and files for .ebextensions
-echo "Creating .ebextensions/ directory and adding Docker/Load Balancer config..."
-mkdir -p .ebextensions
-cat <<EOL > .ebextensions/01_docker.config
-option_settings:
-  aws:elasticbeanstalk:container:docker:
-    ContainerPort: 5000
-  aws:elb:listener:
-    ListenerProtocol: HTTP
-    InstancePort: 5000
-    LoadBalancerPort: 80
-EOL
-
-# Package the application including the .ebextensions directory
-echo "Packaging application with Docker and Load Balancer configurations..."
-zip -r app.zip Dockerfile .ebextensions
-
 # Check required environment variables
 if [ -z "$DOCKER_IMAGE" ]; then
     echo "Error: DOCKER_IMAGE is not set. Exiting."
@@ -71,7 +54,6 @@ else
     aws elasticbeanstalk create-application --application-name $APP_NAME --region $REGION
 fi
 
-# Check if environment exists and update or create accordingly
 # Create or update Elastic Beanstalk environment
 env_exists=$(aws elasticbeanstalk describe-environments --application-name $APP_NAME --environment-names $ENV_NAME --query "Environments[0].Status" --output text --region $REGION)
 
@@ -81,8 +63,11 @@ if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
         --version-label $VERSION_LABEL \
-        --option-settings file://.ebextensions/01_docker.config \
-        Namespace=aws:elasticbeanstalk:environment:process,OptionName=ImageSourceUrl,Value="${DOCKER_IMAGE}" \
+        --option-settings \
+        Namespace=aws:elasticbeanstalk:container:docker,OptionName=ContainerPort,Value=5000 \
+        Namespace=aws:elb:listener,OptionName=ListenerProtocol,Value=HTTP \
+        Namespace=aws:elb:listener,OptionName=InstancePort,Value=5000 \
+        Namespace=aws:elb:listener,OptionName=LoadBalancerPort,Value=80 \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
         Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
         Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
@@ -96,8 +81,11 @@ else
         --environment-name "$ENV_NAME" \
         --version-label $VERSION_LABEL \
         --solution-stack-name "$SOLUTION_STACK_NAME" \
-        --option-settings file://.ebextensions/01_docker.config \
-        Namespace=aws:elasticbeanstalk:environment:process,OptionName=ImageSourceUrl,Value="${DOCKER_IMAGE}" \
+        --option-settings \
+        Namespace=aws:elasticbeanstalk:container:docker,OptionName=ContainerPort,Value=5000 \
+        Namespace=aws:elb:listener,OptionName=ListenerProtocol,Value=HTTP \
+        Namespace=aws:elb:listener,OptionName=InstancePort,Value=5000 \
+        Namespace=aws:elb:listener,OptionName=LoadBalancerPort,Value=80 \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value="$INSTANCE_PROFILE" \
         Namespace=aws:ec2:vpc,OptionName=VPCId,Value="$VPC_ID" \
         Namespace=aws:ec2:vpc,OptionName=Subnets,Value="$SUBNET_ID" \
