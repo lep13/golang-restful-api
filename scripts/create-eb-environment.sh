@@ -13,6 +13,23 @@ VERSION_LABEL="v1"
 SOLUTION_STACK_NAME="64bit Amazon Linux 2 v4.0.2 running Docker"
 KEY_PAIR_NAME="my-ec2-keypair" 
 
+# Create necessary directories and files for .ebextensions
+echo "Creating .ebextensions/ directory and adding Docker/Load Balancer config..."
+mkdir -p .ebextensions
+cat <<EOL > .ebextensions/01_docker.config
+option_settings:
+  aws:elasticbeanstalk:container:docker:
+    ContainerPort: 5000
+  aws:elb:listener:
+    ListenerProtocol: HTTP
+    InstancePort: 5000
+    LoadBalancerPort: 80
+EOL
+
+# Package the application including the .ebextensions directory
+echo "Packaging application with Docker and Load Balancer configurations..."
+zip -r app.zip Dockerfile .ebextensions
+
 # Check required environment variables
 if [ -z "$DOCKER_IMAGE" ]; then
     echo "Error: DOCKER_IMAGE is not set. Exiting."
@@ -55,14 +72,17 @@ else
 fi
 
 # Check if environment exists and update or create accordingly
+# Create or update Elastic Beanstalk environment
 env_exists=$(aws elasticbeanstalk describe-environments --application-name $APP_NAME --environment-names $ENV_NAME --query "Environments[0].Status" --output text --region $REGION)
 
 if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
-    echo "Updating Elastic Beanstalk environment $ENV_NAME with Docker image..."
+    echo "Updating Elastic Beanstalk environment $ENV_NAME with Docker image and configuration..."
     aws elasticbeanstalk update-environment \
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
-        --option-settings Namespace=aws:elasticbeanstalk:environment:process,OptionName=ImageSourceUrl,Value="${DOCKER_IMAGE}" \
+        --version-label $VERSION_LABEL \
+        --option-settings file://.ebextensions/01_docker.config \
+        Namespace=aws:elasticbeanstalk:environment:process,OptionName=ImageSourceUrl,Value="${DOCKER_IMAGE}" \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
         Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
         Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
@@ -70,12 +90,14 @@ if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
         Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=$KEY_PAIR_NAME \
         --region $REGION
 else
-    echo "Creating Elastic Beanstalk environment with Docker image..."
+    echo "Creating Elastic Beanstalk environment with Docker image and configuration..."
     aws elasticbeanstalk create-environment \
         --application-name "$APP_NAME" \
         --environment-name "$ENV_NAME" \
+        --version-label $VERSION_LABEL \
         --solution-stack-name "$SOLUTION_STACK_NAME" \
-        --option-settings Namespace=aws:elasticbeanstalk:environment:process,OptionName=ImageSourceUrl,Value="${DOCKER_IMAGE}" \
+        --option-settings file://.ebextensions/01_docker.config \
+        Namespace=aws:elasticbeanstalk:environment:process,OptionName=ImageSourceUrl,Value="${DOCKER_IMAGE}" \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value="$INSTANCE_PROFILE" \
         Namespace=aws:ec2:vpc,OptionName=VPCId,Value="$VPC_ID" \
         Namespace=aws:ec2:vpc,OptionName=Subnets,Value="$SUBNET_ID" \
@@ -84,10 +106,7 @@ else
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
-        --region $REGION || {
-            echo "Error: Failed to create Elastic Beanstalk environment. Exiting."
-            exit 1
-        }
+        --region $REGION
 fi
 
 # Wait for environment to be ready with extended timeout (600 seconds, 15 retries)
