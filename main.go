@@ -5,19 +5,19 @@ import (
     "net/http"
     "os"
     "time"
-
     "github.com/gorilla/mux"
-    "github.com/joho/godotenv"
+    "github.com/joho/godotenv"  // Keep this for local development
     "github.com/lep13/golang-restful-api/db"
     "github.com/lep13/golang-restful-api/handlers"
 )
 
 // RunServer sets up and starts the server
 func RunServer() {
-    // Load environment variables
-    err := godotenv.Load(".env")
-    if err != nil {
-        log.Fatalf("Error loading .env file: %v", err)
+    // Load .env file only if it exists (for local development)
+    if _, err := os.Stat(".env"); err == nil {
+        if loadErr := godotenv.Load(".env"); loadErr != nil {
+            log.Printf("Error loading .env file: %v", loadErr)
+        }
     }
 
     // Get MongoDB URI from environment
