@@ -79,6 +79,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      - name: Print Region and Docker Image for Debugging
+        run: |
+          echo "AWS Region: ${{ secrets.AWS_REGION }}"
+          echo "Docker Image Name: ${{ secrets.DOCKER_IMAGE_NAME }}"
+
       - name: Log in to Amazon ECR
         run: |
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_REGION }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
@@ -90,10 +95,11 @@ jobs:
         run: |
           docker build -t ${{ secrets.DOCKER_IMAGE_NAME }} .
           docker tag ${{ secrets.DOCKER_IMAGE_NAME }}:latest ${{ secrets.AWS_REGION }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.DOCKER_IMAGE_NAME }}:latest
-          
+        
       - name: Push Docker image to ECR
         run: |
           docker push ${{ secrets.AWS_REGION }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.DOCKER_IMAGE_NAME }}:latest
+
 
   # Deployment Job
   deploy:
