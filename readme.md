@@ -11,46 +11,62 @@ This project is a RESTful API implemented in Go (Golang) using MongoDB as the da
 - [Running the Application](#running-the-application)
 - [API Endpoints](#api-endpoints)
 - [Environment Variables](#environment-variables)
-- [Testing](#testing)
 - [CI/CD Pipeline](#cicd-pipeline)
+- [Security Scans](#security-scans)
+- [Testing](#testing)
 - [Future Work](#future-work)
+
 
 ## Requirements
 
 - Go v1.20 or higher
 - MongoDB instance
 - Git
-- Node.js and npm (for initial project setup if converting from Node.js)
+
 
 ## Project Structure
 
 ```plaintext
 golang-restful-api/
-├── main.go
-├── go.mod
-├── go.sum
-├── handlers/
-│   ├── user.go
-├── models/
-│   ├── user.go
+├── .github/
+│   └── workflows/
+│       └── ci_cd_pipeline.yml
 ├── db/
 │   ├── connect.go
+│   └── connect_test.go
+├── handlers/
+│   ├── user.go
+│   └── user_test.go
+├── models/
+│   └── user.go
+├── scripts/
+│   └── create-eb-environment.sh
 ├── .env
-└── .gitignore
+├── .gitignore
+├── go.mod
+├── go.sum
+├── main.go
+├── main_test.go
+├── option-settings.json
+└── README.md
 ```
 
 - `main.go`: Entry point of the application.
-- `handlers/`: Contains handler functions for different API endpoints.
-- `models/`: Defines the data models.
-- `db/`: Manages database connections.
-- `.env`: Environment variables file.
+- `.github/workflows/`: Contains the CI/CD pipeline configuration using GitHub Actions.
+- `db/`: Manages database connections, with corresponding tests in connect_test.go.
+- `handlers/`: Contains the handler functions for API endpoints with corresponding tests in user_test.go.
+- `models/`: Defines the data models for the application.
+- `scripts/`: Contains automation scripts for deployment; create-eb-environment.sh.
+- `.env`: Stores the environment variables for the application.
+- `option-settings.json`: Holds the configuration settings for the Elastic Beanstalk environment.
+
 
 ## Setup Instructions
 
 1. **Clone the Repository**:
 
    ```bash
-   git clone https://github.com/your-username/golang-restful-api.git
+   git clone https://github.com/lep13/golang-restful-api.git
    cd golang-restful-api
    ```
 
@@ -64,11 +80,11 @@ golang-restful-api/
 
 3. **Set Up Environment Variables**:
 
-   Create a `.env` file in the root directory:
+   Create an `.env` file in the root directory:
 
    ```plaintext
    MONGO_URI=your_mongodb_uri
-   PORT=3000
+   PORT=5000
    ```
 
 4. **Run the Application**:
@@ -83,6 +99,7 @@ golang-restful-api/
 
    You can use tools like Postman or curl to interact with the API endpoints listed below.
 
+
 ## API Endpoints
 
 | Method | Endpoint        | Description               |
@@ -92,31 +109,44 @@ golang-restful-api/
 | GET    | /users/{id}     | Retrieve a specific user  |
 | DELETE | /users/{id}     | Delete a specific user    |
 | PUT    | /users/{id}     | Update a specific user    |
+| GET	   | /health	      | Health check of the API   |
+
 
 ## Environment Variables
 
 Ensure you have the following variables set in your `.env` file:
-
 - `MONGO_URI`: The connection string for your MongoDB instance.
-- `PORT`: Port on which the server will run.
+- `PORT`: Port on which the server will run (default: 5000).
 
-## Testing
-
-*To be implemented:* Unit and integration tests using Go's testing package and a suitable testing framework.
 
 ## CI/CD Pipeline
 
-*To be implemented:* A complete CI/CD pipeline using GitHub Actions, including:
+The CI/CD pipeline is configured using GitHub Actions. It includes the following stages:
+- Build: Compiles the Go application.
+- Security Scan: Uses Gosec for Go code security scanning and Trivy for vulnerability scans.
+- Deployment: Deploys the application to AWS Elastic Beanstalk.
+- Health Check: Ensures the environment health is stable after deployment.
+- CloudWatch Logs: Automatically enables CloudWatch logs for monitoring.
+- Automatic Rollback: Rolls back the environment if deployment fails.
 
-- Code linting and formatting checks.
-- Unit and integration tests.
-- Security scans.
-- Automatic deployment to a staging environment.
-- Notifications and monitoring setup.
+
+## Security Scans
+
+Security scanning is implemented with:
+- Gosec: Scans the Go codebase for potential security issues.
+- Trivy: Scans for vulnerabilities in dependencies and application files.
+- Snyk: (Optional) Can be integrated for further dependency scanning.
+
+
+## Testing
+
+Test cases have been implemented for all directories including handlers, models, and database connections. Use the following command to run the tests:
+   ```bash
+   go test ./...
+   ```
 
 ## Future Work
 
-- Add test cases for all handler functions.
 - Implement user authentication and authorization.
 - Integrate with Docker for containerized deployment.
-- Set up a CI/CD pipeline as outlined.
+- Enhance the CI/CD pipeline with better monitoring and alerting mechanisms.
