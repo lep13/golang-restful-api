@@ -98,8 +98,8 @@ jobs:
   # Deployment Job
   deploy:
     runs-on: ubuntu-latest
-    needs: [build, security_scan]
-    if: needs.build.result == 'success'
+    needs: [docker_build_push]
+    if: needs.docker_build_push.result == 'success'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
