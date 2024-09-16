@@ -10,8 +10,8 @@ SECURITY_GROUP_NAME=${SECURITY_GROUP_NAME}
 VPC_ID=${VPC_ID}
 SUBNET_ID=${SUBNET_ID}
 VERSION_LABEL="v1"
-SOLUTION_STACK_NAME="64bit Amazon Linux 2 v3.4.10 running Docker"
-KEY_PAIR_NAME="my-ec2-keypair" # Update this with your actual key pair name
+SOLUTION_STACK_NAME="64bit Amazon Linux 2 v4.0.2 running Docker"
+KEY_PAIR_NAME="my-ec2-keypair" 
 
 # Check required environment variables
 if [ -z "$DOCKER_IMAGE" ]; then
