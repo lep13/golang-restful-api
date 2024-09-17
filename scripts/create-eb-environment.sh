@@ -11,9 +11,9 @@ VPC_ID=${VPC_ID}
 SUBNET_ID=${SUBNET_ID}
 VERSION_LABEL="v1"
 SOLUTION_STACK_NAME="64bit Amazon Linux 2 v4.0.2 running Docker"
-KEY_PAIR_NAME="my-ec2-keypair" 
+KEY_PAIR_NAME="ec2-keypair" 
 
-# Check required environment variables
+#  Check required environment variables
 if [ -z "$DOCKER_IMAGE" ]; then
     echo "Error: DOCKER_IMAGE is not set. Exiting."
     exit 1
@@ -36,7 +36,7 @@ security_group_id=$(aws ec2 describe-security-groups --filters Name=group-name,V
 if [ "$security_group_id" == "None" ]; then
     echo "Creating security group $SECURITY_GROUP_NAME..."
     security_group_id=$(aws ec2 create-security-group --group-name $SECURITY_GROUP_NAME --description "Security group for Elastic Beanstalk environment" --vpc-id $VPC_ID --region $REGION --query 'GroupId' --output text)
-    
+
     echo "Adding inbound rules to security group $SECURITY_GROUP_NAME..."
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 80 --cidr 0.0.0.0/0 --region $REGION
     aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol tcp --port 5000 --cidr 0.0.0.0/0 --region $REGION
@@ -58,13 +58,12 @@ fi
 env_exists=$(aws elasticbeanstalk describe-environments --application-name $APP_NAME --environment-names $ENV_NAME --query "Environments[0].Status" --output text --region $REGION)
 
 if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
-    echo "Updating Elastic Beanstalk environment $ENV_NAME with Docker image and configuration..."
+    echo "Updating Elastic Beanstalk environment $ENV_NAME with Docker image from ECR..."
     aws elasticbeanstalk update-environment \
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
-        --version-label $VERSION_LABEL \
         --option-settings \
-        Namespace=aws:elasticbeanstalk:container:docker,OptionName=ContainerPort,Value=5000 \
+        Namespace=aws:elasticbeanstalk:container:docker,OptionName=ImageSourceUrl,Value="${DOCKER_IMAGE}" \
         Namespace=aws:elb:listener,OptionName=ListenerProtocol,Value=HTTP \
         Namespace=aws:elb:listener,OptionName=InstancePort,Value=5000 \
         Namespace=aws:elb:listener,OptionName=LoadBalancerPort,Value=80 \
@@ -75,14 +74,13 @@ if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
         Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=$KEY_PAIR_NAME \
         --region $REGION
 else
-    echo "Creating Elastic Beanstalk environment with Docker image and configuration..."
+    echo "Creating Elastic Beanstalk environment with Docker image from ECR..."
     aws elasticbeanstalk create-environment \
         --application-name "$APP_NAME" \
         --environment-name "$ENV_NAME" \
-        --version-label $VERSION_LABEL \
         --solution-stack-name "$SOLUTION_STACK_NAME" \
         --option-settings \
-        Namespace=aws:elasticbeanstalk:container:docker,OptionName=ContainerPort,Value=5000 \
+        Namespace=aws:elasticbeanstalk:container:docker,OptionName=ImageSourceUrl,Value="${DOCKER_IMAGE}" \
         Namespace=aws:elb:listener,OptionName=ListenerProtocol,Value=HTTP \
         Namespace=aws:elb:listener,OptionName=InstancePort,Value=5000 \
         Namespace=aws:elb:listener,OptionName=LoadBalancerPort,Value=80 \
