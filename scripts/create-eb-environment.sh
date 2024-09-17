@@ -54,6 +54,27 @@ else
     aws elasticbeanstalk create-application --application-name $APP_NAME --region $REGION
 fi
 
+# Create the Dockerrun.aws.json file for the ECR Docker image
+cat <<EOF > Dockerrun.aws.json
+{
+  "AWSEBDockerrunVersion": 2,
+  "containerDefinitions": [
+    {
+      "name": "$APP_NAME",
+      "image": "$DOCKER_IMAGE",
+      "essential": true,
+      "memory": 512,
+      "portMappings": [
+        {
+          "hostPort": 80,
+          "containerPort": 5000
+        }
+      ]
+    }
+  ]
+}
+EOF
+
 # Create or update Elastic Beanstalk environment
 env_exists=$(aws elasticbeanstalk describe-environments --application-name $APP_NAME --environment-names $ENV_NAME --query "Environments[0].Status" --output text --region $REGION)
 
@@ -94,6 +115,7 @@ else
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
         --region $REGION
 fi
+echo "Elastic Beanstalk environment setup complete."
 
 # Wait for environment to be ready with extended timeout (600 seconds, 15 retries)
 echo "Waiting for the environment to be ready with extended timeout..."
