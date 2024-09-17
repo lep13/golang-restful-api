@@ -75,36 +75,32 @@ cat <<EOF > Dockerrun.aws.json
 }
 EOF
 
-# Create or update Elastic Beanstalk environment
+# Check if environment exists and update or create accordingly
 env_exists=$(aws elasticbeanstalk describe-environments --application-name $APP_NAME --environment-names $ENV_NAME --query "Environments[0].Status" --output text --region $REGION)
 
 if [ "$env_exists" != "None" ] && [ "$env_exists" != "Terminated" ]; then
-    echo "Updating Elastic Beanstalk environment $ENV_NAME with Docker image from ECR..."
+    echo "Updating Elastic Beanstalk environment $ENV_NAME with Docker image..."
     aws elasticbeanstalk update-environment \
         --application-name $APP_NAME \
         --environment-name $ENV_NAME \
+        --version-label $VERSION_LABEL \
+        --region $REGION \
         --option-settings \
-        Namespace=aws:elasticbeanstalk:container:docker,OptionName=ImageSourceUrl,Value="${DOCKER_IMAGE}" \
-        Namespace=aws:elb:listener,OptionName=ListenerProtocol,Value=HTTP \
-        Namespace=aws:elb:listener,OptionName=InstancePort,Value=5000 \
-        Namespace=aws:elb:listener,OptionName=LoadBalancerPort,Value=80 \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value=$INSTANCE_PROFILE \
         Namespace=aws:ec2:vpc,OptionName=VPCId,Value=$VPC_ID \
         Namespace=aws:ec2:vpc,OptionName=Subnets,Value=$SUBNET_ID \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=SecurityGroups,Value=$security_group_id \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=EC2KeyName,Value=$KEY_PAIR_NAME \
-        --region $REGION
+        --version-label "$VERSION_LABEL"
 else
-    echo "Creating Elastic Beanstalk environment with Docker image from ECR..."
+    echo "Creating Elastic Beanstalk environment with Docker image..."
     aws elasticbeanstalk create-environment \
         --application-name "$APP_NAME" \
         --environment-name "$ENV_NAME" \
         --solution-stack-name "$SOLUTION_STACK_NAME" \
+        --version-label "$VERSION_LABEL" \
+        --region $REGION \
         --option-settings \
-        Namespace=aws:elasticbeanstalk:container:docker,OptionName=ImageSourceUrl,Value="${DOCKER_IMAGE}" \
-        Namespace=aws:elb:listener,OptionName=ListenerProtocol,Value=HTTP \
-        Namespace=aws:elb:listener,OptionName=InstancePort,Value=5000 \
-        Namespace=aws:elb:listener,OptionName=LoadBalancerPort,Value=80 \
         Namespace=aws:autoscaling:launchconfiguration,OptionName=IamInstanceProfile,Value="$INSTANCE_PROFILE" \
         Namespace=aws:ec2:vpc,OptionName=VPCId,Value="$VPC_ID" \
         Namespace=aws:ec2:vpc,OptionName=Subnets,Value="$SUBNET_ID" \
@@ -113,7 +109,7 @@ else
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=DeleteOnTerminate,Value=true \
         Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=RetentionInDays,Value=14 \
-        --region $REGION
+        --version-label "$VERSION_LABEL"
 fi
 echo "Elastic Beanstalk environment setup complete."
 
